@@ -1,0 +1,119 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ورود | کتابخانه پژوهشسرا</title>
+
+
+    <link rel="stylesheet" href="/static/style/login.css">
+</head>
+
+
+<body>
+{% include 'flash.html' %}
+    <main class="auth-page">
+
+        <div class="auth-card">
+
+            <div class="auth-logo">
+                📚
+            </div>
+
+            <h1>
+                خوش آمدید
+            </h1>
+
+          
+
+            <form method="POST" action="/login">
+
+                <div class="input-group">
+
+                    <label for="username">
+                        نام کاربری
+                    </label>
+
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="نام کاربری خود را وارد کنید"
+                        required
+                    >
+
+                </div>
+
+<div class="input-group">
+
+    <label for="password">
+        رمز عبور
+    </label>
+
+    <div class="password-box">
+
+        <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="رمز عبور خود را وارد کنید"
+            required
+        >
+
+        <button
+            type="button"
+            class="password-toggle"
+            onclick="togglePassword('password', this)"
+        >
+            👁
+        </button>
+
+    </div>
+
+</div>
+
+
+                <div class="buttons">
+
+                    <button
+                        type="submit"
+                        class="btn submit-btn"
+                    >
+                        ورود
+                    </button>
+
+                    <a
+                      
+                        class="btn back-btn"
+                        onclick="history.back()"
+                    >
+                        بازگشت
+                    </a>
+
+                </div>
+
+            </form>
+
+
+            <div class="auth-link">
+
+                حساب کاربری ندارید؟
+
+                <a href="/register">
+                    ثبت نام
+                </a>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</body>
+<script src="/static/script/password_show.js"></script>
+
+</html>
+

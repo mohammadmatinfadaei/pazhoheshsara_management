@@ -1,0 +1,688 @@
+/* =========================================================
+   ACTIONS PAGE
+========================================================= */
+
+.actions-page {
+    width: 94%;
+    max-width: 1400px;
+    margin: 0 auto 50px auto;
+}
+
+
+/* =========================================================
+   TITLE
+========================================================= */
+
+.actions-page-title {
+
+    /* display: flex; */
+    align-items: right;
+    gap: 18px;
+
+    margin-bottom: 25px;
+
+    padding: 24px 28px;
+
+    border-radius: 20px;
+
+    background: rgba(255, 255, 255, 0.75);
+
+    border: 1px solid rgba(0, 0, 0, 0.08);
+
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.07);
+
+    backdrop-filter: blur(12px);
+    text-align: right !important;
+}
+
+
+.actions-page-title h1 {
+
+    margin: 10px;
+padding: 10px;
+    font-size: 27px;
+    background: rgba(100, 100, 100, 0.1);
+border-radius: 10px;
+    color: #222;
+text-align: right !important;
+}
+
+
+.actions-page-title p {
+
+    margin: 7px 0 0;
+
+    color: #777;
+
+    font-size: 14px;
+text-align: right !important;
+
+}
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+.actions-search-box {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    width: 100%;
+
+    margin-bottom: 20px;
+}
+
+
+.actions-search-box input {
+
+    flex: 1;
+
+    height: 48px;
+
+    padding: 0 18px;
+
+    border-radius: 13px;
+
+    border: 1px solid #ddd;
+
+    outline: none;
+
+    font-family: inherit;
+
+    font-size: 14px;
+
+    background: #fff;
+
+    color: #222;
+
+    transition: 0.2s;
+}
+
+
+.actions-search-box input:focus {
+
+    border-color: #777;
+
+    box-shadow:
+        0 0 0 3px rgba(100, 100, 100, 0.08);
+}
+
+
+.actions-search-box button {
+
+    height: 48px;
+
+    padding: 0 24px;
+
+    border: none;
+
+    border-radius: 13px;
+
+    cursor: pointer;
+
+    font-family: inherit;
+
+    font-size: 14px;
+
+    background: #333;
+
+    color: white;
+
+    transition: 0.2s;
+}
+
+
+.actions-search-box button:hover {
+
+    transform: translateY(-2px);
+
+    opacity: 0.9;
+}
+
+
+.clear-search-btn {
+
+    height: 48px;
+
+    padding: 0 18px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    text-decoration: none;
+
+    border-radius: 13px;
+
+    background: #eee;
+
+    color: #555;
+
+    font-size: 14px;
+
+    transition: 0.2s;
+}
+
+
+.clear-search-btn:hover {
+
+    background: #ddd;
+}
+
+
+/* =========================================================
+   TABLE CONTAINER
+========================================================= */
+
+.actions-table-container {
+
+    width: 100%;
+
+    overflow-x: auto;
+
+    border-radius: 18px;
+
+    background: rgba(255, 255, 255, 0.85);
+
+    border: 1px solid rgba(0, 0, 0, 0.07);
+
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.06);
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.actions-table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+    min-width: 750px;
+
+    direction: rtl;
+}
+
+
+.actions-table thead {
+
+    background: #f3f3f3;
+}
+
+
+.actions-table th {
+
+    padding: 17px 15px;
+
+    font-size: 20px;
+
+    font-weight: 700;
+
+    color: #333;
+
+    text-align: center;
+
+    border-bottom: 1px solid #ddd;
+}
+
+
+.actions-table td {
+
+    padding: 17px 15px;
+
+    font-size: 17px;
+
+    color: #444;
+
+    text-align: center;
+
+    border-bottom: 1px solid #eee;
+
+}
+
+
+.actions-table tbody tr {
+
+    transition: 0.2s;
+}
+
+
+.actions-table tbody tr:hover {
+
+    background: rgba(0, 0, 0, 0.025);
+}
+
+
+.actions-table tbody tr:last-child td {
+
+    border-bottom: none;
+}
+
+
+/* =========================================================
+   COLUMNS
+========================================================= */
+
+.action-number {
+
+    width: 70px;
+
+    font-weight: bold;
+
+    color: #777 !important;
+}
+
+
+.action-text {
+
+    text-align: right !important;
+
+    font-weight: 600;
+
+    min-width: 420px;
+}
+
+
+.action-date {
+
+    white-space: nowrap;
+
+    direction: ltr;
+}
+
+
+.action-time {
+
+    white-space: nowrap;
+
+    direction: ltr;
+
+    font-family: monospace;
+
+    font-size: 14px !important;
+}
+
+
+/* =========================================================
+   EMPTY
+========================================================= */
+
+.no-actions {
+
+    padding: 55px !important;
+
+    text-align: center !important;
+
+    color: #888 !important;
+
+    font-size: 16px !important;
+}
+
+
+/* =========================================================
+   PAGE INFO
+========================================================= */
+
+.actions-page-info {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    margin-top: 18px;
+
+    padding: 14px 18px;
+
+    border-radius: 13px;
+
+    background: rgba(255, 255, 255, 0.7);
+
+    border: 1px solid rgba(0, 0, 0, 0.06);
+
+    color: #777;
+
+    font-size: 13px;
+}
+
+
+.actions-page-info strong {
+
+    color: #333;
+}
+
+
+/* =========================================================
+   PAGINATION
+========================================================= */
+
+.actions-pagination {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 18px;
+
+    margin-top: 22px;
+
+    direction: rtl;
+}
+
+
+.pagination-btn {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    min-width: 125px;
+
+    height: 44px;
+
+    padding: 0 18px;
+
+    border-radius: 12px;
+
+    text-decoration: none;
+
+    background: #333;
+
+    color: white;
+
+    font-size: 13px;
+
+    transition: 0.2s;
+
+    cursor: pointer;
+}
+
+
+.pagination-btn:hover {
+
+    transform: translateY(-2px);
+
+    opacity: 0.9;
+}
+
+
+.pagination-btn.disabled {
+
+    background: #ddd;
+
+    color: #999;
+
+    cursor: not-allowed;
+
+    pointer-events: none;
+}
+
+
+.pagination-current {
+
+    min-width: 130px;
+
+    height: 44px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 5px;
+
+    border-radius: 12px;
+
+    background: #f2f2f2;
+
+    color: #333;
+
+    font-size: 14px;
+
+    font-weight: 600;
+}
+
+
+.pagination-current span {
+
+    color: #888;
+
+    font-weight: normal;
+}
+
+
+/* =========================================================
+   DARK MODE
+========================================================= */
+
+body.dark-mode .actions-page-title,
+body.dark-mode .actions-table-container,
+body.dark-mode .actions-page-info {
+
+    background: rgba(30, 30, 30, 0.82);
+
+    border-color: rgba(255, 255, 255, 0.08);
+
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+
+body.dark-mode .actions-page-title h1 {
+
+    color: #ff0000;
+        background: rgba(237, 237, 237, 0.1);
+}
+
+
+body.dark-mode .actions-page-title p {
+
+    color: #999;
+}
+
+
+body.dark-mode .actions-search-box input {
+
+    background: #202020;
+
+    color: #eee;
+
+    border-color: #444;
+}
+
+
+body.dark-mode .actions-search-box input::placeholder {
+
+    color: #888;
+}
+
+
+body.dark-mode .actions-search-box button {
+
+    background: #eee;
+
+    color: #222;
+}
+
+
+body.dark-mode .clear-search-btn {
+
+    background: #333;
+
+    color: #ddd;
+}
+
+
+body.dark-mode .clear-search-btn:hover {
+
+    background: #444;
+}
+
+
+body.dark-mode .actions-table thead {
+
+    background: #292929;
+}
+
+
+body.dark-mode .actions-table th {
+
+    color: #eee;
+
+    border-bottom-color: #444;
+}
+
+
+body.dark-mode .actions-table td {
+
+    color: #ccc;
+
+    border-bottom-color: #383838;
+}
+
+
+body.dark-mode .actions-table tbody tr:hover {
+
+    background: rgba(255, 255, 255, 0.035);
+}
+
+
+body.dark-mode .action-number {
+
+    color: #999 !important;
+}
+
+
+body.dark-mode .actions-page-info {
+
+    color: #999;
+}
+
+
+body.dark-mode .actions-page-info strong {
+
+    color: #eee;
+}
+
+
+body.dark-mode .pagination-current {
+
+    background: #292929;
+
+    color: #eee;
+}
+
+
+body.dark-mode .pagination-current span {
+
+    color: #999;
+}
+
+
+body.dark-mode .pagination-btn {
+
+    background: #eee;
+
+    color: #222;
+}
+
+
+body.dark-mode .pagination-btn.disabled {
+
+    background: #333;
+
+    color: #777;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 700px) {
+
+    .actions-page {
+
+        width: 96%;
+    }
+
+
+    .actions-page-title {
+
+        padding: 18px;
+
+    }
+
+
+    .actions-page-title h1 {
+
+        font-size: 21px;
+
+    }
+
+
+    .actions-search-box {
+
+        flex-wrap: wrap;
+
+    }
+
+
+    .actions-search-box input {
+
+        width: 100%;
+
+        flex: none;
+
+    }
+
+
+    .actions-search-box button,
+    .clear-search-btn {
+
+        flex: 1;
+
+    }
+
+
+    .actions-page-info {
+
+        flex-direction: column;
+
+        gap: 8px;
+
+    }
+
+
+    .actions-pagination {
+
+        gap: 8px;
+
+    }
+
+
+    .pagination-btn {
+
+        min-width: 95px;
+
+        padding: 0 10px;
+
+    }
+
+}

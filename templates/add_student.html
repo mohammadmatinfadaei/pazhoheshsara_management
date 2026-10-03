@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% include 'flash.html' %}
+
+<link rel="stylesheet" href="/static/style/add_student.css">
+
+<div class="student-page-title">
+
+    <div class="student-page-icon">
+        👨‍🎓
+    </div>
+
+    <h1>اضافه کردن دانش‌آموز</h1>
+
+    <p>
+        اطلاعات دانش‌آموز جدید را وارد کنید
+    </p>
+
+</div>
+
+
+<form
+    action="{{ url_for('add_student') }}"
+    method="POST"
+    class="student-form"
+>
+
+
+    <!-- نام -->
+
+    <div class="form-group">
+
+        <label>نام</label>
+
+        <input
+            type="text"
+            name="first_name"
+            placeholder="نام دانش‌آموز را وارد کنید"
+            required
+        >
+
+    </div>
+
+
+    <!-- نام خانوادگی -->
+
+    <div class="form-group">
+
+        <label>نام خانوادگی</label>
+
+        <input
+            type="text"
+            name="last_name"
+            placeholder="نام خانوادگی را وارد کنید"
+            required
+        >
+
+    </div>
+
+
+    <!-- کد ملی -->
+
+    <div class="form-group">
+
+        <label>کد ملی</label>
+
+        <input
+            type="number"
+            name="national_id_code"
+            placeholder="کد ملی را وارد کنید"
+            required
+        >
+
+    </div>
+
+
+    <!-- کد دانش آموزی -->
+
+    <div class="form-group">
+
+        <label>کد دانش‌آموزی</label>
+
+        <input
+            type="number"
+            name="student_id_code"
+            placeholder="کد دانش‌آموزی را وارد کنید"
+            required
+        >
+
+    </div>
+
+
+    <!-- شماره تلفن -->
+
+    <div class="form-group">
+
+        <label>شماره تلفن</label>
+
+        <input
+            type="number"
+            name="phone_number"
+            placeholder="شماره تلفن را وارد کنید"
+            required
+        >
+
+    </div>
+
+
+    <!-- شماره تلفن دوم -->
+
+    <div class="form-group">
+
+        <label>شماره تلفن دوم</label>
+
+        <input
+            type="number"
+            name="phone_number_two"
+            placeholder="شماره تلفن دوم را وارد کنید"
+        >
+
+    </div>
+
+
+    <!-- نام پدر -->
+
+    <div class="form-group">
+
+        <label>نام پدر</label>
+
+        <input
+            type="text"
+            name="father_name"
+            placeholder="نام پدر را وارد کنید"
+            required
+        >
+
+    </div>
+
+
+    <!-- تاریخ تولد -->
+
+    <div class="form-group">
+
+        <label>تاریخ تولد</label>
+
+        <input
+            type="text"
+            name="birthday"
+            placeholder="مثلاً ۱۳۹۰/۰۵/۲۱"
+            required
+        >
+
+    </div>
+
+
+    <!-- نام مدرسه -->
+
+    <div class="form-group">
+
+        <label>نام مدرسه</label>
+
+        <input
+            type="text"
+            name="school_name"
+            placeholder="نام مدرسه را وارد کنید"
+            required
+        >
+
+    </div>
+        <div class="form-group">
+
+        <label>نشانی</label>
+
+        <input
+            type="text"
+            name="address"
+            placeholder="نشانی دانش آموز را وارد کنید"
+            required
+        >
+
+    </div>
+
+
+    
+
+
+    <!-- ثبت -->
+
+    <button type="submit">
+
+        👨‍🎓 ثبت دانش‌آموز
+
+    </button>
+  <button     onclick="history.back()">
+        بازگشت 
+    </button>
+
+</form>
+
+{% endblock %}

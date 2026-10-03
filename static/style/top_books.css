@@ -1,0 +1,567 @@
+/* =========================================================
+   TOP BOOKS PAGE
+========================================================= */
+
+.top-books-page {
+    width: 94%;
+    max-width: 1400px;
+    margin: 0 auto 50px auto;
+}
+
+
+/* =========================================================
+   TITLE
+========================================================= */
+
+.top-books-page-title {
+
+    align-items: right;
+    gap: 18px;
+
+    margin-bottom: 25px;
+
+    padding: 24px 28px;
+
+    border-radius: 20px;
+
+
+    border: 1px solid rgba(0, 0, 0, 0.08);
+
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.07);
+
+    backdrop-filter: blur(12px);
+
+    text-align: right !important;
+}
+
+
+.top-books-page-title h1 {
+
+    margin: 10px;
+
+    padding: 10px;
+
+    font-size: 27px;
+
+  
+
+    border-radius: 10px;
+
+    color: #222;
+
+    text-align: right !important;
+}
+
+
+.top-books-page-title p {
+
+    margin: 7px 0 0;
+
+    color: #777;
+
+    font-size: 14px;
+
+    text-align: right !important;
+}
+
+
+/* =========================================================
+   TOP COUNT
+========================================================= */
+
+.top-books-count {
+
+    display: inline-block;
+
+    margin-top: 15px;
+
+    padding: 9px 16px;
+
+    border-radius: 11px;
+
+   
+
+    color: #555;
+
+    font-size: 14px;
+
+    font-weight: 600;
+}
+
+
+/* =========================================================
+   TABLE CONTAINER
+========================================================= */
+
+.top-books-table-container {
+
+    width: 100%;
+
+    overflow-x: auto;
+
+    border-radius: 18px;
+
+   
+
+    border: 1px solid rgba(0, 0, 0, 0.07);
+
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.06);
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.top-books-table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+    min-width: 900px;
+
+    direction: rtl;
+}
+
+
+.top-books-table thead {
+
+    background: #f3f3f3;
+}
+
+
+.top-books-table th {
+
+    padding: 17px 15px;
+
+    font-size: 20px;
+
+    font-weight: 700;
+
+    color: #333;
+
+    text-align: center;
+
+    border-bottom: 1px solid #ddd;
+}
+
+
+.top-books-table td {
+
+    padding: 17px 15px;
+
+    font-size: 17px;
+
+    color: #444;
+
+    text-align: center;
+
+    border-bottom: 1px solid #eee;
+}
+
+
+.top-books-table tbody tr {
+
+    transition: 0.2s;
+}
+
+
+.top-books-table tbody tr:hover {
+
+    background: rgba(0, 0, 0, 0.025);
+}
+
+
+.top-books-table tbody tr:last-child td {
+
+    border-bottom: none;
+}
+
+
+/* =========================================================
+   RANK
+========================================================= */
+
+.book-rank {
+
+    width: 40px;
+
+    height: 40px;
+
+    margin: auto;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 11px;
+
+    background: rgba(100, 100, 100, 0.1);
+
+    color: #4c00ff;
+
+    font-weight: bold;
+
+    font-size: 16px;
+}
+
+
+/* رتبه های اول */
+
+.rank-first {
+
+    background: rgba(61, 246, 0, 0.876);
+
+    color: #4c00ff;
+
+    font-size: 19px;
+}
+
+
+.rank-second {
+
+    background: rgba(183, 255, 0, 0.897);
+
+    color: #4c00ff;
+
+    font-size: 18px;
+}
+
+
+.rank-third {
+
+    background: rgba(220, 249, 1, 0.887);
+
+    color: #4c00ff;
+
+    font-size: 18px;
+}
+
+
+/* =========================================================
+   BOOK TITLE
+========================================================= */
+
+.book-title-cell {
+
+    text-align: right !important;
+
+    font-weight: 600;
+
+    min-width: 260px;
+}
+
+
+/* =========================================================
+   BORROW COUNT
+========================================================= */
+.header-text{
+
+    color: #4c00ff;
+    text-align: center;
+}
+.borrow-count {
+
+    display: inline-block;
+
+    min-width: 75px;
+
+    padding: 8px 13px;
+
+    border-radius: 10px;
+
+    background: rgba(100, 100, 100, 0.1);
+
+     color: #4c00ff;
+
+    font-weight: 700;
+
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+.book-status {
+
+    display: inline-block;
+
+    padding: 8px 13px;
+
+    border-radius: 10px;
+
+    font-size: 14px;
+
+    white-space: nowrap;
+}
+
+
+.book-status.available {
+
+    background: rgba(70, 160, 90, 0.12);
+
+    color: #3d7948;
+}
+
+
+.book-status.borrowed {
+
+    background: rgba(190, 70, 70, 0.12);
+
+    color: #a04444;
+}
+
+
+/* =========================================================
+   EMPTY
+========================================================= */
+
+.empty-top-books {
+
+    padding: 55px !important;
+
+    text-align: center !important;
+
+    color: #888 !important;
+
+    font-size: 16px !important;
+
+    border-radius: 18px;
+
+    background: rgba(255, 255, 255, 0.85);
+
+    border: 1px solid rgba(0, 0, 0, 0.07);
+
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.06);
+}
+
+
+.empty-icon {
+
+    font-size: 50px;
+
+    margin-bottom: 15px;
+}
+
+
+.empty-top-books h2 {
+
+    margin-bottom: 10px;
+
+    color: #555;
+}
+
+
+.empty-top-books p {
+
+    color: #888;
+}
+
+
+/* =========================================================
+   DARK MODE
+========================================================= */
+
+body.dark-mode .top-books-page-title {
+
+    background: rgba(30, 30, 30, 0.82);
+
+    border-color: rgba(255, 255, 255, 0.08);
+
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+
+body.dark-mode .top-books-page-title h1 {
+
+    color: #ff0000;
+
+    background: rgba(237, 237, 237, 0.1);
+}
+
+
+body.dark-mode .top-books-page-title p {
+
+    color: #999;
+}
+
+
+body.dark-mode .top-books-count {
+
+    background: rgba(237, 237, 237, 0.1);
+
+    color: #ccc;
+}
+
+
+/* TABLE */
+
+body.dark-mode .top-books-table-container {
+
+    background: rgba(30, 30, 30, 0.82);
+
+    border-color: rgba(255, 255, 255, 0.08);
+
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+
+body.dark-mode .top-books-table thead {
+
+    background: #292929;
+}
+
+
+body.dark-mode .top-books-table th {
+
+    color: #eee;
+
+    border-bottom-color: #444;
+}
+
+
+body.dark-mode .top-books-table td {
+
+    color: #ccc;
+
+    border-bottom-color: #383838;
+}
+
+
+body.dark-mode .top-books-table tbody tr:hover {
+
+    background: rgba(255, 255, 255, 0.035);
+}
+
+
+/* RANK */
+
+body.dark-mode .book-rank {
+
+    background: rgba(255, 255, 255, 0.08);
+
+    color: #ccc;
+}
+
+
+body.dark-mode .rank-first {
+
+    background: rgba(255, 255, 255, 0.15);
+
+    color: #eee;
+}
+
+
+body.dark-mode .rank-second {
+
+    background: rgba(255, 255, 255, 0.12);
+
+    color: #ddd;
+}
+
+
+body.dark-mode .rank-third {
+
+    background: rgba(255, 255, 255, 0.1);
+
+    color: #ccc;
+}
+
+
+/* COUNT */
+
+body.dark-mode .borrow-count {
+
+    background: rgba(255, 255, 255, 0.08);
+
+    color: #ddd;
+}
+
+
+/* STATUS */
+
+body.dark-mode .book-status.available {
+
+    background: rgba(70, 160, 90, 0.15);
+
+    color: #8fcf98;
+}
+
+
+body.dark-mode .book-status.borrowed {
+
+    background: rgba(190, 70, 70, 0.15);
+
+    color: #e08b8b;
+}
+
+
+/* EMPTY */
+
+body.dark-mode .empty-top-books {
+
+    background: rgba(30, 30, 30, 0.82);
+
+    border-color: rgba(255, 255, 255, 0.08);
+
+    box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+
+body.dark-mode .empty-top-books h2 {
+
+    color: #ddd;
+}
+
+
+body.dark-mode .empty-top-books p {
+
+    color: #888;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 700px) {
+
+    .top-books-page {
+
+        width: 96%;
+    }
+
+
+    .top-books-page-title {
+
+        padding: 18px;
+    }
+
+
+    .top-books-page-title h1 {
+
+        font-size: 21px;
+    }
+
+
+    .top-books-table th {
+
+        font-size: 17px;
+    }
+
+
+    .top-books-table td {
+
+        font-size: 15px;
+    }
+
+}

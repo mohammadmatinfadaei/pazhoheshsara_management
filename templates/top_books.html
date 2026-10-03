@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% include 'flash.html' %}
+<link rel="stylesheet" href="/static/style/top_books.css">
+
+
+
+    <div class="top-books-header">
+
+        <div>
+            <h1 class="header-text">🏆 صد کتاب برتر</h1>
+
+          
+        </div>
+
+     
+
+    </div>
+<br><br>
+
+    {% if books %}
+
+    <div class="books-table-container">
+
+        <table class="books-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>رتبه</th>
+
+                    <th>عنوان کتاب</th>
+
+                    <th>نویسنده / مترجم</th>
+
+                    <th>شماره کنگره</th>
+
+                    <th>قفسه</th>
+
+                    <th>ردیف</th>
+
+                    <th>تعداد امانت</th>
+
+                    <th>وضعیت</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+                {% for book in books %}
+
+                <tr>
+
+                    <td>
+
+                        <div class="book-rank
+                            {% if loop.index == 1 %}
+                                rank-first
+                            {% elif loop.index == 2 %}
+                                rank-second
+                            {% elif loop.index == 3 %}
+                                rank-third
+                            {% endif %}
+                        ">
+
+                            {{ loop.index }}
+
+                        </div>
+
+                    </td>
+
+
+                    <td class="book-title-cell">
+
+                        {{ book.book_title or '-' }}
+
+                    </td>
+
+
+                    <td>
+
+                        {{ book.author_translator or '-' }}
+
+                    </td>
+
+
+                    <td>
+
+                        {{ book.congress_number or '-' }}
+
+                    </td>
+
+
+                    <td>
+
+                        {{ book.shelf_number or '-' }}
+
+                    </td>
+
+
+                    <td>
+
+                        {{ book.row_number or '-' }}
+
+                    </td>
+
+
+                    <td>
+
+                        <span class="borrow-count">
+ بار
+                            {{ book.borrow_count or 0 }}
+
+                           
+
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        {% if book.available %}
+
+                            <span class="book-borrowed">
+
+                                امانت داده شده
+
+                            </span>
+
+                        {% else %}
+
+                            <span class="book-available">
+
+                                در دسترس
+
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {% else %}
+
+    <div class="empty-top-books">
+
+        <div class="empty-icon">
+            📚
+        </div>
+
+        <h2>
+            هنوز آماری ثبت نشده است
+        </h2>
+
+        <p>
+            بعد از امانت داده شدن کتاب‌ها،
+            آمار آن‌ها در اینجا نمایش داده می‌شود.
+        </p>
+
+    </div>
+
+    {% endif %}
+
+
+
+
+
+
+{% endblock %}

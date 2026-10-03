@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% include 'flash.html' %}
+
+<link rel="stylesheet" href="/static/style/show_actions.css">
+
+<br><br>
+
+<div class="actions-page">
+
+    <!-- عنوان صفحه -->
+    <div class="actions-page-title">
+
+      
+
+        <div>
+            <h1 >گزارش عملیات ادمین‌ها 📋</h1>
+
+            <p >
+                تاریخچه تمام عملیات انجام شده در سیستم
+            </p>
+        </div>
+
+    </div>
+
+
+    <!-- جستجو -->
+    <form
+        action="/show_actions"
+        method="GET"
+        class="actions-search-box"
+    >
+
+        <input
+            type="text"
+            name="search"
+            value="{{ search }}"
+            placeholder="جستجو در عملیات، تاریخ یا ساعت..."
+        >
+
+        <button type="submit">
+            🔍 جستجو
+        </button>
+
+        {% if search %}
+        <a
+            href="{{ url_for('show_actions') }}"
+            class="clear-search-btn"
+        >
+            ✖ پاک کردن
+        </a>
+        {% endif %}
+
+    </form>
+
+
+    <br>
+
+
+    <!-- جدول -->
+    <div class="actions-table-container">
+
+        <table class="actions-table">
+
+            <thead>
+
+                <tr>
+
+                    
+
+                    <th>
+                        عملیات
+                    </th>
+
+                    <th>
+                   در تاریخ
+                    </th>
+
+                    <th>
+                        در ساعت
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+                {% if actions %}
+
+                    {% for action in actions %}
+
+                    <tr>
+
+
+                        <td class="action-text">
+                            {{ action.actions_taken or '-' }}
+                        </td>
+
+                        <td class="action-date">
+                            📅
+                            {{ action.date or '-' }}
+                        </td>
+
+                        <td class="action-time">
+                            🕐
+                            {{ action.time or '-' }}
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                {% else %}
+
+                    <tr>
+
+                        <td
+                            colspan="4"
+                            class="no-actions"
+                        >
+                            📭 هیچ عملیاتی پیدا نشد.
+                        </td>
+
+                    </tr>
+
+                {% endif %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- اطلاعات صفحه -->
+    <div class="actions-page-info">
+
+        <span>
+            📋 تعداد عملیات این صفحه:
+            <strong>{{ actions|length }}</strong>
+        </span>
+
+        <span>
+            📄 صفحه
+            <strong>{{ page }}</strong>
+            از
+            <strong>{{ total_pages }}</strong>
+        </span>
+
+    </div>
+
+
+    <!-- Pagination -->
+    <div class="actions-pagination">
+
+        {% if page > 1 %}
+
+        <a
+            href="{{ url_for(
+                'show_actions',
+                page=page-1,
+                search=search
+            ) }}"
+            class="pagination-btn"
+        >
+            ← صفحه قبل
+        </a>
+
+        {% else %}
+
+        <span class="pagination-btn disabled">
+            ← صفحه قبل
+        </span>
+
+        {% endif %}
+
+
+        <div class="pagination-current">
+
+            صفحه {{ page }}
+
+            <span>
+                از {{ total_pages }}
+            </span>
+
+        </div>
+
+
+        {% if page < total_pages %}
+
+        <a
+            href="{{ url_for(
+                'show_actions',
+                page=page+1,
+                search=search
+            ) }}"
+            class="pagination-btn"
+        >
+            صفحه بعد →
+        </a>
+
+        {% else %}
+
+        <span class="pagination-btn disabled">
+            صفحه بعد →
+        </span>
+
+        {% endif %}
+
+    </div>
+
+
+</div>
+
+{% endblock %}

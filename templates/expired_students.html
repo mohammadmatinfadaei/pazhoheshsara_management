@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% include 'flash.html' %}
+
+<br><br>
+
+<div class="expired-students-page">
+
+<!-- =========================
+     عنوان
+========================== -->
+
+<div class="expired-students-title">
+
+    <h1>⚠️ دانش‌آموزان منقضی شده</h1>
+
+    <p>
+        فهرست دانش‌آموزانی که کارت آن‌ها نیاز به تمدید دارد
+    </p>
+
+</div>
+
+
+<!-- =========================
+     جستجو
+========================== -->
+
+<form
+    action="/expired_students"
+    method="GET"
+    class="expired-students-search-box"
+>
+
+    <button type="submit">
+        🔍 جستجو
+    </button>
+
+    <input
+        type="text"
+        name="search"
+        placeholder="جستجوی نام، نام خانوادگی، کد ملی، کد دانش‌آموزی یا مدرسه..."
+        value="{{ search }}"
+    >
+
+</form>
+
+
+<br>
+
+
+<!-- =========================
+     جدول
+========================== -->
+
+<div class="expired-students-table-container">
+
+    <table class="expired-students-table">
+
+        <thead>
+
+            <tr>
+
+                <th>نام</th>
+                <th>نام خانوادگی</th>
+                <th>کد ملی</th>
+                <th>کد دانش‌آموزی</th>
+                <th>مدرسه</th>
+                <th>تاریخ ثبت نام</th>
+                <th>تاریخ انقضا</th>
+                <th>عملیات</th>
+
+            </tr>
+
+        </thead>
+
+
+        <tbody>
+
+            {% if students.items %}
+
+                {% for student in students.items %}
+
+                <tr class="expired-student-row">
+
+                    <td>
+                        {% if student.first_name %}
+                            {{ student.first_name }}
+                        {% else %}
+                            _
+                        {% endif %}
+                    </td>
+
+
+                    <td>
+                        {% if student.last_name %}
+                            {{ student.last_name }}
+                        {% else %}
+                            _
+                        {% endif %}
+                    </td>
+
+
+                    <td>
+                        {% if student.national_id_code %}
+                            {{ student.national_id_code }}
+                        {% else %}
+                            _
+                        {% endif %}
+                    </td>
+
+
+                    <td>
+                        {% if student.student_id_code %}
+                            {{ student.student_id_code }}
+                        {% else %}
+                            _
+                        {% endif %}
+                    </td>
+
+
+                    <td>
+                        {% if student.school_name %}
+                            {{ student.school_name }}
+                        {% else %}
+                            _
+                        {% endif %}
+                    </td>
+
+
+                    <!-- تاریخ ثبت نام به صورت جلالی -->
+
+                    <td>
+                        {% if student.registration_date %}
+                            {{ student.registration_date|jalali }}
+                        {% else %}
+                            _
+                        {% endif %}
+                    </td>
+
+
+                    <!-- تاریخ انقضا به صورت جلالی -->
+
+                    <td>
+                        {% if student.expiration_date %}
+                            {{ student.expiration_date|jalali }}
+                        {% else %}
+                            _
+                        {% endif %}
+                    </td>
+
+
+                    <td>
+
+                        <a
+                            href="{{ url_for(
+                                'renew_student',
+                                student_id=student.id
+                            ) }}"
+                            class="renew-student-btn"
+                            onclick="return confirm(
+                                'با تمدید کارت، تمام امانت‌های فعلی این دانش‌آموز پس گرفته می‌شوند و کارت او برای یک سال تمدید خواهد شد. آیا مطمئن هستید؟'
+                            );"
+                        >
+
+                            🔄 تمدید کارت
+
+                        </a>
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            {% else %}
+
+                <tr>
+
+                    <td
+                        colspan="8"
+                        class="no-expired-student"
+                    >
+
+                        {% if search %}
+                            🔍 دانش‌آموز منقضی شده‌ای با این جستجو پیدا نشد.
+                        {% else %}
+                            🎉 هیچ دانش‌آموز منقضی شده‌ای وجود ندارد.
+                        {% endif %}
+
+                    </td>
+
+                </tr>
+
+            {% endif %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+
+<!-- =========================
+     صفحه بندی
+========================== -->
+
+<div class="expired-students-pagination">
+
+    {% if students.has_prev %}
+
+    <a href="{{ url_for(
+        'expired_students',
+        page=students.prev_num,
+        search=search
+    ) }}">
+        ← صفحه قبل
+    </a>
+
+    {% endif %}
+
+
+    <span>
+        صفحه {{ students.page }} از {{ students.pages }}
+    </span>
+
+
+    {% if students.has_next %}
+
+    <a href="{{ url_for(
+        'expired_students',
+        page=students.next_num,
+        search=search
+    ) }}">
+        صفحه بعد →
+    </a>
+
+    {% endif %}
+
+</div>
+
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,111 @@
+.error-page {
+    width: 90%;
+    max-width: 650px;
+    margin: 80px auto;
+    padding: 45px 30px;
+    direction: rtl;
+    text-align: center;
+
+    background: #ffffff;
+    border-radius: 20px;
+
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+}
+
+.error-icon {
+    width: 80px;
+    height: 80px;
+
+    margin: 0 auto 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #fff3cd;
+    border-radius: 22px;
+
+    font-size: 40px;
+}
+
+.error-page h1 {
+    margin-bottom: 12px;
+
+    font-size: 30px;
+    color: #222;
+}
+
+.error-page p {
+    color: #666;
+    font-size: 16px;
+    margin: 8px 0;
+}
+
+.excel-warning {
+    margin-top: 20px !important;
+
+    padding: 14px;
+
+    background: #fff4e5;
+    border-radius: 12px;
+
+    color: #8a5a00 !important;
+}
+
+.back-btn {
+    display: inline-block;
+
+    margin-top: 28px;
+
+    padding: 12px 30px;
+
+    border-radius: 10px;
+
+    background: #4f7cff;
+    color: white;
+
+    text-decoration: none;
+
+    font-size: 16px;
+    font-weight: bold;
+
+    transition: 0.2s;
+}
+
+.back-btn:hover {
+    background: #365fd6;
+    transform: translateY(-2px);
+}
+
+
+/* Dark Mode */
+
+body:not(.light-mode) .error-page {
+    background: #1f2937;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.30);
+}
+
+body:not(.light-mode) .error-page h1 {
+    color: #f3f4f6;
+}
+
+body:not(.light-mode) .error-page p {
+    color: #9ca3af;
+}
+
+body:not(.light-mode) .excel-warning {
+    background: #3b2f1a;
+    color: #fbbf24 !important;
+}
+
+body:not(.light-mode) .error-icon {
+    background: #3b2f1a;
+}
+
+body:not(.light-mode) .back-btn {
+    background: #6366f1;
+}
+
+body:not(.light-mode) .back-btn:hover {
+    background: #4f46e5;
+}

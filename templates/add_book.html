@@ -1,0 +1,64 @@
+{%extends'base.html'%}
+
+{%block content%}
+
+{% include 'flash.html' %}
+
+<link rel="stylesheet" href="/static/style/add_book.css">
+
+<div class="book-page-title">
+    <h1>📚 اضافه کردن کتاب</h1>
+    <p>اطلاعات کتاب جدید را وارد کنید</p>
+</div>
+
+<form action="/add_book" method="POST" class="book-form">
+
+
+
+    <div class="form-group">
+        <label>عنوان کتاب</label>
+        <input type="text" name="book_title"
+               placeholder="عنوان کتاب را وارد کنید" required>
+    </div>
+
+    <div class="form-group">
+        <label>نویسنده / مترجم</label>
+        <input type="text" name="author_translator"
+               placeholder="نویسنده یا مترجم را وارد کنید" required>
+    </div>
+
+    <div class="form-group">
+        <label>شماره کنگره</label>
+        <input type="text" name="congress_number"
+               placeholder="شماره کنگره را وارد کنید" required>
+    </div>
+
+
+    <div class="form-group">
+        <label>شماره قفسه</label>
+        <input type="number" step="any" name="shelf_number"
+               placeholder="شماره قفسه را وارد کنید">
+    </div>
+
+    <div class="form-group">
+        <label>شماره ردیف</label>
+        <input type="number" step="any" name="row_number"
+               placeholder="شماره ردیف را وارد کنید">
+    </div>
+
+    <div class="form-group checkbox-group">
+        <label class="checkbox-label">
+            <input type="checkbox" name="comprehensive" value="True">
+            <span>مرجع است</span>
+        </label>
+    </div>
+
+    <button type="submit">
+        افزودن کتاب
+    </button>
+  <button     onclick="history.back()">
+        بازگشت 
+    </button>
+</form>
+
+{%endblock%}

@@ -1,0 +1,213 @@
+{%extends'base.html'%}
+
+{%block content%}
+
+{% include 'flash.html' %}
+
+{% if current_admin %}
+
+<div class="current-admin-box">
+
+    <div class="current-admin-icon">
+        👤
+    </div>
+
+    <div class="current-admin-info">
+
+        <span>
+            ادمین حال حاضر
+        </span>
+
+        <strong>
+            {{ current_admin.first_name }}
+            {{ current_admin.last_name }}
+        </strong>
+
+    </div>
+
+</div>
+
+<div class="home-container">
+
+    <!-- خوش آمدگویی -->
+
+    <div class="welcome-box">
+
+        {% if current_admin %}
+
+         
+
+        {% else %}
+
+            <h1>
+                کتابخانه پژوهشسرا 📚
+            </h1>
+
+            <p>
+                سامانه مدیریت کتابخانه
+            </p>
+
+        {% endif %}
+
+    </div>
+
+
+    <!-- فعالیت های اخیر مخصوص God User -->
+
+    {% if current_admin and current_admin.god_user %}
+
+    <div class="actions-section">
+
+        <div class="section-title">
+            آخرین فعالیت‌ها
+        </div>
+
+        <div class="actions-box">
+
+            {% if latest_actions %}
+
+                {% for action in latest_actions %}
+
+                <div class="action-item">
+
+                    <div class="action-text">
+                        {{ action.actions_taken }}
+                    </div>
+
+                    <div class="action-date">
+                        {{ action.date }} | {{ action.time }}
+                    </div>
+
+                </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <div class="action-item">
+                    <div class="action-text">
+                        هنوز فعالیتی ثبت نشده است.
+                    </div>
+                </div>
+
+            {% endif %}
+
+        </div>
+
+
+        <div class="actions-button-container">
+
+            <a href="/show_actions" class="actions-button">
+                نظارت بر تمامی فعالیت‌ها
+            </a>
+
+        </div>
+
+    </div>
+
+    {% endif %}
+
+
+    <!-- کارت های اصلی -->
+
+    <div class="dashboard-grid">
+
+
+        <!-- کتاب ها -->
+
+        <div class="dashboard-card">
+
+            <div class="card-icon">
+                📚
+            </div>
+
+            <div class="card-title">
+                تمامی کتاب‌ها
+            </div>
+
+            <div class="card-number">
+                {{ total_books }}
+            </div>
+
+            <a href="/show_books" class="card-link">
+                لیست تمامی کتاب‌ها ←
+            </a>
+
+        </div>
+
+
+        <!-- دانش آموزان -->
+
+        <div class="dashboard-card">
+
+            <div class="card-icon">
+                👨‍🎓
+            </div>
+
+            <div class="card-title">
+                دانش‌آموزان
+            </div>
+
+            <div class="card-number">
+                {{ total_students }}
+            </div>
+
+            <a href="/show_students" class="card-link">
+                لیست دانش‌آموزان ←
+            </a>
+
+        </div>
+
+
+        <!-- امانت ها -->
+
+        <div class="dashboard-card">
+
+            <div class="card-icon">
+                📖
+            </div>
+
+            <div class="card-title">
+                کتاب‌های امانت داده شده
+            </div>
+
+            <div class="card-number">
+                {{ borrowed_books }}
+            </div>
+
+            <a href="/show_borrowings" class="card-link">
+                مشاهده امانت‌ها ←
+            </a>
+
+        </div>
+
+
+        <!-- دیرکرد -->
+
+        <div class="dashboard-card">
+
+            <div class="card-icon">
+                ⏰
+            </div>
+
+            <div class="card-title">
+                کتاب‌های دارای دیرکرد
+            </div>
+
+            <div class="card-number">
+                {{ overdue_books }}
+            </div>
+
+            <a href="/overdue_borrowings" class="card-link">
+                مشاهده دیرکردها ←
+            </a>
+
+        </div>
+
+
+    </div>
+
+</div>
+{% endif %}
+
+{%endblock%}

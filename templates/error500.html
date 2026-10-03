@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% include 'flash.html' %}
+
+<link rel="stylesheet" href="/static/style/error500.css">
+
+<div class="error-page">
+
+    <div class="error-icon">
+        ⚠️
+    </div>
+
+    <h1>خطایی رخ داد</h1>
+
+    <p>
+        در پردازش درخواست مشکلی پیش آمد.
+    </p>
+
+    <p class="excel-warning">
+        اگر فایل Excel باز است، لطفاً آن را ببندید و دوباره تلاش کنید.
+    </p>
+
+    <a  class="back-btn"     onclick="history.back()">
+        ↩ بازگشت
+    </a>
+
+</div>
+
+{% endblock %}

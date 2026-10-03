@@ -1,0 +1,312 @@
+
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% include 'flash.html' %}
+
+<link rel="stylesheet" href="/static/style/show_borrowings.css">
+
+<br><br>
+
+<div class="borrowings-page-title">
+
+    <h1>⚠️ امانت‌های دیرکرد</h1>
+
+    <p>
+        فهرست کتاب‌هایی که مهلت بازگشت آن‌ها تمام شده است
+    </p>
+
+</div>
+
+
+<!-- جستجو -->
+
+<form
+    action="/overdue_borrowings"
+    method="GET"
+    class="borrowings-search-box"
+>
+
+    <button type="submit">
+        🔍 جستجو
+    </button>
+    <input
+        type="text"
+        name="search"
+        placeholder="جستجوی نام کتاب، شماره کنگره، دانش‌آموز یا کد دانش‌آموزی..."
+        value="{{ search }}"
+    >
+
+
+</form>
+
+
+<br>
+
+
+<!-- جدول -->
+
+<div class="borrowings-table-container">
+
+    <table class="borrowings-table">
+
+        <thead>
+
+            <tr>
+
+                <th>
+                    نام کتاب
+                </th>
+
+                <th>
+                    کد کتاب
+                </th>
+
+                <th>
+                    نام امانت‌گیرنده
+                </th>
+
+                <th>
+                    کد دانش‌آموزی
+                </th>
+
+                <th>
+                    تاریخ بازگشت
+                </th>
+
+                <th>
+                    وضعیت
+                </th>
+
+                <th>
+                    عملیات
+                </th>
+
+            </tr>
+
+        </thead>
+
+
+        <tbody>
+
+            {% if borrowing_data %}
+
+                {% for item in borrowing_data %}
+
+                    {% set borrowing = item.borrowing %}
+                    {% set book = item.book %}
+                    {% set student = item.student %}
+
+
+                    <tr class="borrow-expired">
+
+
+                        <!-- نام کتاب -->
+
+                        <td>
+
+                            {% if book.book_title %}
+
+                                {{ book.book_title }}
+
+                            {% else %}
+
+                                _
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <!-- شماره کنگره -->
+
+                        <td id="congress_number">
+
+                            {% if book.congress_number %}
+
+                                {{ book.congress_number }}
+
+                            {% else %}
+
+                                _
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <!-- نام دانش‌آموز -->
+
+                        <td>
+
+                            {{ student.first_name or '' }}
+
+                            {{ student.last_name or '' }}
+
+                        </td>
+
+
+                        <!-- کد دانش‌آموزی -->
+
+                        <td>
+
+                            {{ student.student_id_code or '_' }}
+
+                        </td>
+
+
+                        <!-- تاریخ بازگشت -->
+
+                        <td>
+
+                 {{ borrowing.return_date|jalali if borrowing.return_date else '_' }}
+                        </td>
+
+
+                        <!-- وضعیت -->
+
+                        <td>
+
+                            <span class="borrow-expired-text">
+
+                                ⚠️ مهلت بازگشت تمام شده
+
+                            </span>
+
+                        </td>
+
+
+                        <!-- عملیات -->
+
+                        <td class="borrowing-actions">
+
+
+                            <!-- تمدید -->
+
+                            {% if borrowing.extension == True %}
+
+                                <span class="already-extended">
+
+                                    🔒 قبلاً تمدید شده
+
+                                </span>
+
+                            {% else %}
+
+                                <a
+                                    href="{{ url_for(
+                                        'extend_borrowing',
+                                        borrowing_id=borrowing.id
+                                    ) }}"
+                                    class="extend-borrow-btn"
+                                    onclick="return confirm(
+                                        'آیا مطمئن هستید که می‌خواهید این امانت را ۱۴ روز تمدید کنید؟'
+                                    );"
+                                >
+
+                                    🔄 تمدید
+
+                                </a>
+
+                            {% endif %}
+
+
+                            <!-- پس گرفتن -->
+
+                            <a
+                                href="{{ url_for(
+                                    'return_borrowing',
+                                    borrowing_id=borrowing.id
+                                ) }}"
+                                class="return-borrow-btn"
+                                onclick="return confirm(
+                                    'آیا کتاب پس گرفته شده است؟'
+                                );"
+                            >
+
+                                📥 پس گرفته شد
+
+                            </a>
+
+
+                        </td>
+
+                    </tr>
+
+                {% endfor %}
+
+
+            {% else %}
+
+                <tr>
+
+                    <td
+                        colspan="7"
+                        class="no-borrowing"
+                    >
+
+                        🎉 هیچ امانت دیرکردی وجود ندارد.
+
+                    </td>
+
+                </tr>
+
+            {% endif %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+
+<!-- صفحه بندی -->
+
+<div class="pagination">
+
+    {% if page > 1 %}
+
+        <a
+            href="{{ url_for(
+                'overdue_borrowings',
+                page=page - 1,
+                search=search
+            ) }}"
+        >
+
+            ← صفحه قبل
+
+        </a>
+
+    {% endif %}
+
+
+    <span>
+
+        صفحه {{ page }} از {{ total_pages }}
+
+    </span>
+
+
+    {% if page < total_pages %}
+
+        <a
+            href="{{ url_for(
+                'overdue_borrowings',
+                page=page + 1,
+                search=search
+            ) }}"
+        >
+
+            صفحه بعد →
+
+        </a>
+
+    {% endif %}
+
+</div>
+
+
+{% endblock %}
+

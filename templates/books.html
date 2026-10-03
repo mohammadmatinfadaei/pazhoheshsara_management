@@ -1,0 +1,152 @@
+{%extends'base.html'%}
+
+{%block content%}
+
+
+{% include 'flash.html' %}
+
+<br><br>
+
+<form action="/show_books" method="GET" class="books-search-box">
+
+    <input type="text" name="search" placeholder="جستجوی کتاب..." value="{{ search }}">
+
+    <button type="submit">
+        🔍 جستجو
+    </button>
+
+</form>
+
+
+
+<br><br>
+
+<div class="books-table-container">
+
+
+    <table class="books-table">
+
+        <thead>
+            <tr>
+               
+                <th>عنوان کتاب</th>
+                <th>نویسنده / مترجم</th>
+                <th>شماره کنگره</th>
+           
+                <th>شماره قفسه</th>
+                <th>شماره ردیف</th>
+                <th>مرجع</th>
+                <th>وضعیت</th>
+                <th>ویرایش</th>
+                <th>حذف</th>
+
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for book in books.items %}
+
+            {% if book.book_title != None and book.book_title != "None" %}
+
+            <tr>
+               
+
+                <td>
+                    {% if book.book_title == None or book.book_title == "None" %}
+                    _
+                    {% else %}
+                    {{ book.book_title }}
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if book.author_translator == None or book.author_translator == "None" %}
+                    _
+                    {% else %}
+                    {{ book.author_translator }}
+                    {% endif %}
+                </td>
+
+                <td id="congress_number">
+                    {% if book.congress_number == None or book.congress_number == "None" %}
+                    _
+                    {% else %}
+                    {{ book.congress_number }}
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if book.shelf_number == None or book.shelf_number == "None" %}
+                    _
+                    {% else %}
+                    {{ book.shelf_number }}
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if book.row_number == None or book.row_number == "None" %}
+                    _
+                    {% else %}
+                    {{ book.row_number }}
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if book.comprehensive == None or book.comprehensive == "None" %}
+                    _
+
+                    {% else %}
+                    {% if book.comprehensive == True%}
+                    <span class="book-borrowed">
+                        است </span>
+                    {% else %}
+                    <span class="book-available">
+                        نیست     
+                    </span>
+                    {% endif %}
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if book.available == True %}
+                    <span class="book-borrowed">
+                        امانت داده شده
+                    </span>
+                    {% else %}
+                    <span class="book-available">
+                        در دسترس
+                    </span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    <a href="{{ url_for('edit_book', book_id=book.id) }}" class="edit-book-btn">
+                        ✏️ ویرایش کنید
+                    </a>
+                </td>
+
+                <td>
+                    <a href="{{ url_for('delete_book', book_id=book.id) }}" class="delete-book-btn"
+                        onclick="return confirm('آیا مطمئن هستید که می‌خواهید این کتاب را حذف کنید؟');">
+                        🗑️ حذف کنید
+                    </a>
+                </td>
+
+            </tr>
+
+            {% endif %}
+
+            {% endfor %}
+        </tbody>
+
+    </table>
+
+
+
+</div>
+
+<div class="pagination"> {% if books.has_prev %} <a
+        href="{{ url_for('show_books', page=books.prev_num, search=search) }}"> ← صفحه قبل </a> {% endif %} <span> صفحه
+        {{ books.page }} از {{ books.pages }} </span> {% if books.has_next %} <a
+        href="{{ url_for('show_books', page=books.next_num, search=search) }}"> صفحه بعد → </a> {% endif %} </div>
+{%endblock%}

@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% include 'flash.html' %}
+
+<link rel="stylesheet" href="/static/style/import_books.css">
+
+
+<div class="import-container">
+
+    <div class="import-icon">
+        👩‍🎓
+    </div>
+
+
+    <h1>
+        افزودن گروهی دانش‌آموزان
+    </h1>
+
+
+    <p>
+        فایل Excel دانش‌آموزان را انتخاب کنید.
+        هر ردیف به صورت جداگانه بررسی و اضافه خواهد شد.
+    </p>
+
+
+    <form
+        action="{{ url_for('import_students') }}"
+        method="POST"
+        enctype="multipart/form-data"
+        class="import-form"
+    >
+
+        <label class="file-box">
+
+            <span class="file-icon">
+                📊
+            </span>
+
+            <span class="file-text">
+                انتخاب فایل Excel
+            </span>
+
+            <input
+                type="file"
+                name="excel_file"
+                accept=".xlsx"
+                required
+            >
+
+        </label>
+
+
+        <button type="submit">
+            👨‍🎓 اضافه کردن دانش‌آموزان
+        </button>
+  <button     onclick="history.back()">
+        بازگشت 
+    </button>
+    </form>
+
+
+    <div class="info-box">
+
+        <h3>
+            ساختار فایل Excel
+        </h3>
+
+
+        <p>
+            فایل باید دارای 9 ستون اطلاعات دانش‌آموز باشد:
+        </p>
+
+
+        <div class="columns">
+
+            <span>
+                A - نام
+            </span>
+
+            <span>
+                B - نام خانوادگی
+            </span>
+
+            <span>
+                C - کد ملی
+            </span>
+
+            <span>
+                D - کد دانش‌آموزی
+            </span>
+
+            <span>
+                E - شماره تلفن
+            </span>
+      <span>
+               F - شماره تلفن دوم
+            </span>
+
+              <span>
+              G -  نام پدر 
+            </span>
+              <span>
+               H - تاریخ تولد  
+            </span>
+              <span>
+               I - نام مدرسه
+            </span>
+        </div>
+
+
+        <div class="warning">
+
+            ⚠️
+            ستون‌های ظرفیت امانت، تاریخ ثبت‌نام،
+            تاریخ انقضا و مهلت توسط سیستم به صورت خودکار ساخته می‌شوند.
+
+        </div>
+
+    </div>
+
+</div>
+
+
+{% endblock %}
