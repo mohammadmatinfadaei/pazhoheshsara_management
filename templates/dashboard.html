@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}پنل من | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h1>سلام {{ session.get('name') or 'کاربر گرامی' }}</h1>
+
+    {% if role == 'admin' %}
+        <p class="lead">به پنل مدیریت آموزشگاه خوش آمدید. از منوی بالا بخش مورد نظر را انتخاب کنید.</p>
+    {% elif role == 'teacher' %}
+        <p class="lead">به پنل دبیران خوش آمدید. از منوی بالا بخش مورد نظر را انتخاب کنید.</p>
+    {% elif role == 'student_parent' %}
+        <p class="lead">به پنل دانش‌آموز و والدین خوش آمدید. از منوی بالا بخش مورد نظر را انتخاب کنید.</p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}خطا {{ code }}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h1>خطا {{ code }}</h1>
+    <p class="lead">{{ message }}</p>
+    <a class="btn primary" href="{{ url_for('index') }}">بازگشت به صفحه اصلی</a>
+</section>
+{% endblock %}

@@ -1,70 +1,75 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}آموزشگاه پژوهش‌سرا{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}سامانه مدیریت آموزشگاه پژوهش‌سرا{% endblock %}">
+    <meta name="robots" content="{% block robots %}noindex, nofollow{% endblock %}">
+    <meta name="theme-color" content="#1b2a41">
+    <link rel="canonical" href="{{ site_url() }}{{ request.path }}">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231b2a41'/%3E%3Crect x='7' y='7' width='4' height='12' fill='%230d7c86'/%3E%3Crect x='7' y='21' width='18' height='4' fill='%23e0a52c'/%3E%3C/svg%3E">
+
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="fa_IR">
+    <meta property="og:site_name" content="آموزشگاه پژوهش‌سرا">
+    <meta property="og:title" content="{{ self.title() }}">
+    <meta property="og:description" content="{{ self.meta_description() }}">
+    <meta property="og:url" content="{{ site_url() }}{{ request.path }}">
+
     <link rel="stylesheet" href="/static/style/style.css">
+    <script src="/static/script/init.js"></script>
+    {% block head %}{% endblock %}
 </head>
-
 <body>
-    <nav class="navbar"> <!-- ===================== لوگو ====================== --> <a href="/" class="logo">
-            <div class="logo-icon"> 📚 </div> <span> کتابخانه پژوهشسرا </span>
-        </a> <!-- ===================== منوی اصلی ====================== -->
-        <ul class="nav-menu"> <!-- خانه -->
-            <li class="nav-item"> <a href="/" class="nav-link"> خانه </a> </li>
-            <!-- ===================== کتاب‌ها ====================== -->
-            <li class="nav-item"> <a href="#" class="nav-link"> کتاب‌ها <span class="arrow"> ▼ </span> </a>
-                <ul class="dropdown">
-                    <li> <a href="/show_books"> <span class="dropdown-icon"> 📚 </span> همه کتاب‌ها </a> </li>
-                    <li> <a href="/add_book"> <span class="dropdown-icon"> ➕ </span> اضافه کردن کتاب </a> </li>
-                 <li> <a href="/import_books"> <span class="dropdown-icon">🗂️ </span> اضافه کردن کتاب بطور گروهی  </a> </li>
-                               <li> <a href="/top_books"> <span class="dropdown-icon">🏆 </span>صد کتاب برتر</a> </li>
+    <a class="skip-link" href="#content">پرش به محتوای اصلی</a>
 
-                </ul>
-            </li> <!-- ===================== دانش‌آموزان ====================== -->
-            <li class="nav-item"> <a href="#" class="nav-link"> دانش‌آموزان <span class="arrow"> ▼ </span> </a>
-                <ul class="dropdown">
-                    <li> <a href="/show_students"> <span class="dropdown-icon"> 👨‍🎓 </span> همه دانش‌آموزان </a> </li>
-                                        <li> <a href="/expired_students"> <span class="dropdown-icon"> ⚠️ </span> دانش‌آموزان منقضی شده </a> </li>
-                    <li> <a href="/add_student"> <span class="dropdown-icon"> ➕ </span> ثبت عضو جدید </a> </li>
-                                 <li> <a href="/import_students"> <span class="dropdown-icon"> 👥 </span>  ثبت عضو جدید بطور گروهی</a> </li>
-                </ul>
-            </li> <!-- ===================== امانت دادن ====================== -->
-            <li class="nav-item"> <a href="#" class="nav-link"> امانت دادن <span class="arrow"> ▼ </span> </a>
-                <ul class="dropdown">
-                    <li> <a href="/new_borrowing"> <span class="dropdown-icon"> 📤 </span> امانت جدید </a> </li>
-                    <li> <a href="/show_borrowings"> <span class="dropdown-icon"> 📋 </span> تمامی امانت‌ها </a> </li>
-                    <li> <a href="/overdue_borrowings"> <span class="dropdown-icon"> ⏰ </span> امانت‌های دیر شده </a> </li>
-                </ul>
-            </li>
-             <!-- =====================اعمال ادامین ====================== -->
-              {% if current_admin and current_admin.god_user %}
-            <li class="nav-item"> <a href="/show_actions" class="nav-link" >فعالیت ادمین ها </a>
-            {%endif%}
-            </li>
-               <!-- =====================
-         تغییر حالت
-    ====================== -->
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{{ url_for('index') }}">پژوهش‌سرا</a>
 
-    <button class="theme-btn" id="themeBtn">
+            <button type="button" class="nav-toggle" aria-controls="site-nav" aria-expanded="false">
+                منو
+            </button>
 
-        <span id="themeIcon">☀️</span>
+            <nav id="site-nav" class="site-nav" aria-label="منوی اصلی">
+                {% if nav_menu %}
+                    {% include "_role_nav.html" %}
+                {% endif %}
 
-        <span id="themeText">حالت روشن</span>
+                <div class="nav-actions">
+                    {% if session.get('user_id') %}
+                        <a href="{{ url_for('dashboard') }}">پنل من</a>
+                        <form method="post" action="{{ url_for('logout') }}" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="nav-btn">خروج</button>
+                        </form>
+                    {% else %}
+                        <a href="{{ url_for('login') }}">ورود</a>
+                        <a href="{{ url_for('register') }}">ثبت‌نام کارمندان</a>
+                    {% endif %}
+                </div>
+            </nav>
+        </div>
+    </header>
 
-    </button>
-        </ul> <!-- ===================== خروج ====================== -->
-         <a href="/logout" class="logout-btn"> خروج </a>
-    </nav>
+    <main id="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flashes" role="alert">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
 
-    {%block content%}
+        {% block content %}{% endblock %}
+    </main>
 
-{%endblock%}
+    <footer class="footer">آموزشگاه پژوهش‌سرا</footer>
+
+    <script src="/static/script/nav.js"></script>
+    {% block scripts %}{% endblock %}
 </body>
-<script src="/static/script/script.js">
-
-
-</script>
 </html>

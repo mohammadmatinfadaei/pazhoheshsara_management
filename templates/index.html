@@ -1,213 +1,53 @@
-{%extends'base.html'%}
+{% extends "base.html" %}
+{% block title %}آموزشگاه پژوهش‌سرا | سامانه مدیریت آموزشگاه{% endblock %}
+{% block meta_description %}سامانه مدیریت آموزشگاه پژوهش‌سرا؛ مدیریت دانش‌آموزان، دبیران، دوره‌ها، کلاس‌ها، حضور و غیاب و امور مالی در یک جا.{% endblock %}
+{% block robots %}index, follow{% endblock %}
 
-{%block content%}
+{% block head %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "EducationalOrganization",
+    "name": "آموزشگاه پژوهش‌سرا",
+    "url": "{{ site_url() }}/",
+    "description": "سامانه مدیریت آموزشگاه پژوهش‌سرا؛ مدیریت دانش‌آموزان، دبیران، دوره‌ها و کلاس‌ها."
+}
+</script>
+{% endblock %}
 
-{% include 'flash.html' %}
-
-{% if current_admin %}
-
-<div class="current-admin-box">
-
-    <div class="current-admin-icon">
-        👤
+{% block content %}
+<section class="hero" aria-labelledby="hero-title">
+    <div class="hero-text">
+        <h1 id="hero-title">سامانه مدیریت آموزشگاه پژوهش‌سرا</h1>
+        <p>حضور و غیاب، دوره‌ها، کلاس‌ها و اطلاعات دانش‌آموزان و دبیران؛ همه در یک جا.</p>
+        <div class="actions">
+            <a class="btn primary" href="{{ url_for('login') }}">ورود به سامانه</a>
+            <a class="btn ghost" href="{{ url_for('register') }}">ثبت‌نام کارمندان</a>
+        </div>
     </div>
 
-    <div class="current-admin-info">
-
-        <span>
-            ادمین حال حاضر
-        </span>
-
-        <strong>
-            {{ current_admin.first_name }}
-            {{ current_admin.last_name }}
-        </strong>
-
-    </div>
-
-</div>
-
-<div class="home-container">
-
-    <!-- خوش آمدگویی -->
-
-    <div class="welcome-box">
-
-        {% if current_admin %}
-
-         
-
-        {% else %}
-
-            <h1>
-                کتابخانه پژوهشسرا 📚
-            </h1>
-
-            <p>
-                سامانه مدیریت کتابخانه
-            </p>
-
-        {% endif %}
-
-    </div>
-
-
-    <!-- فعالیت های اخیر مخصوص God User -->
-
-    {% if current_admin and current_admin.god_user %}
-
-    <div class="actions-section">
-
-        <div class="section-title">
-            آخرین فعالیت‌ها
-        </div>
-
-        <div class="actions-box">
-
-            {% if latest_actions %}
-
-                {% for action in latest_actions %}
-
-                <div class="action-item">
-
-                    <div class="action-text">
-                        {{ action.actions_taken }}
-                    </div>
-
-                    <div class="action-date">
-                        {{ action.date }} | {{ action.time }}
-                    </div>
-
-                </div>
-
-                {% endfor %}
-
-            {% else %}
-
-                <div class="action-item">
-                    <div class="action-text">
-                        هنوز فعالیتی ثبت نشده است.
-                    </div>
-                </div>
-
-            {% endif %}
-
-        </div>
-
-
-        <div class="actions-button-container">
-
-            <a href="/show_actions" class="actions-button">
-                نظارت بر تمامی فعالیت‌ها
-            </a>
-
-        </div>
-
-    </div>
-
-    {% endif %}
-
-
-    <!-- کارت های اصلی -->
-
-    <div class="dashboard-grid">
-
-
-        <!-- کتاب ها -->
-
-        <div class="dashboard-card">
-
-            <div class="card-icon">
-                📚
-            </div>
-
-            <div class="card-title">
-                تمامی کتاب‌ها
-            </div>
-
-            <div class="card-number">
-                {{ total_books }}
-            </div>
-
-            <a href="/show_books" class="card-link">
-                لیست تمامی کتاب‌ها ←
-            </a>
-
-        </div>
-
-
-        <!-- دانش آموزان -->
-
-        <div class="dashboard-card">
-
-            <div class="card-icon">
-                👨‍🎓
-            </div>
-
-            <div class="card-title">
-                دانش‌آموزان
-            </div>
-
-            <div class="card-number">
-                {{ total_students }}
-            </div>
-
-            <a href="/show_students" class="card-link">
-                لیست دانش‌آموزان ←
-            </a>
-
-        </div>
-
-
-        <!-- امانت ها -->
-
-        <div class="dashboard-card">
-
-            <div class="card-icon">
-                📖
-            </div>
-
-            <div class="card-title">
-                کتاب‌های امانت داده شده
-            </div>
-
-            <div class="card-number">
-                {{ borrowed_books }}
-            </div>
-
-            <a href="/show_borrowings" class="card-link">
-                مشاهده امانت‌ها ←
-            </a>
-
-        </div>
-
-
-        <!-- دیرکرد -->
-
-        <div class="dashboard-card">
-
-            <div class="card-icon">
-                ⏰
-            </div>
-
-            <div class="card-title">
-                کتاب‌های دارای دیرکرد
-            </div>
-
-            <div class="card-number">
-                {{ overdue_books }}
-            </div>
-
-            <a href="/overdue_borrowings" class="card-link">
-                مشاهده دیرکردها ←
-            </a>
-
-        </div>
-
-
-    </div>
-
-</div>
-{% endif %}
-
-{%endblock%}
+    <aside class="hero-panel" aria-labelledby="roles-title">
+        <h2 id="roles-title">ورود براساس نقش</h2>
+        <ul class="role-list">
+            <li><strong>دانش‌آموز و والدین</strong><span>مشاهده دوره‌ها، حضور و غیاب و وضعیت مالی</span></li>
+            <li><strong>دبیران</strong><span>دوره‌های تدریس و فهرست دانش‌آموزان</span></li>
+            <li><strong>کارمندان آموزشگاه</strong><span>مدیریت کلاس‌ها، دوره‌ها و ثبت اطلاعات</span></li>
+        </ul>
+    </aside>
+</section>
+
+<section class="features" aria-label="امکانات سامانه">
+    <article>
+        <h2>مدیریت دانش‌آموزان و دبیران</h2>
+        <p>ثبت اطلاعات، فهرست‌های جداگانه و خروجی اکسل برای دسترسی سریع مدیران.</p>
+    </article>
+    <article>
+        <h2>برنامه‌ریزی کلاس‌ها و دوره‌ها</h2>
+        <p>ایجاد دوره، اختصاص کلاس و مشاهده کلاس‌های جاری هر روز.</p>
+    </article>
+    <article>
+        <h2>امور مالی و تجهیزات</h2>
+        <p>پیگیری بدهی‌ها و طلب‌ها، کمدها و تجهیزات آموزشگاه.</p>
+    </article>
+</section>
+{% endblock %}

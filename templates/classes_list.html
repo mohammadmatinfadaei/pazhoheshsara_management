@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}لیست کلاس‌ها | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">مدیریت کلاس‌ها</p>
+    <h1>لیست کلاس‌ها</h1>
+    <p class="lead">تعداد کلاس‌ها: {{ classes|length }} | فعال: {{ active }} | رزرو شده: {{ reserved }} | غیرفعال: {{ classes|length - active - reserved }}</p>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">شماره کلاس</th>
+                    <th scope="col">طبقه</th>
+                    <th scope="col">وضعیت</th>
+                    <th scope="col">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in classes %}
+                <tr>
+                    <td dir="ltr">{{ c.class_number }}</td>
+                    <td>{% if c.floor_number is none %}—{% else %}{{ c.floor_number }}{% endif %}</td>
+                    <td>
+                        {% if c.status %}
+                            <span class="badge-ok">فعال (در حال برگزاری)</span>
+                            <small class="loan-detail">{{ c.when }}</small>
+                        {% elif c.reserved %}
+                            <span class="badge-loaned">رزرو شده (در پیش‌رو)</span>
+                            <small class="loan-detail">{{ c.when }}</small>
+                        {% else %}
+                            <span class="badge-off">غیرفعال</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.status %}
+                            <span class="btn ghost small disabled" aria-disabled="true">کلاس فعال حذف نمی‌شود</span>
+                        {% elif c.reserved %}
+                            <span class="btn ghost small disabled" aria-disabled="true">کلاس رزرو شده حذف نمی‌شود</span>
+                        {% else %}
+                            <a class="btn danger small" href="{{ url_for('class_delete', class_id=c.id) }}">حذف</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty">هنوز کلاسی ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <a class="btn primary" href="{{ url_for('class_add') }}">افزودن کلاس</a>
+    </div>
+</section>
+{% endblock %}

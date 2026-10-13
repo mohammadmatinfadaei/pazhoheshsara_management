@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}وسایل کمد {{ locker.number_of_locker }} | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">کمدها</p>
+    <h1>وسایل داخل کمد {{ locker.number_of_locker }}</h1>
+    <p class="lead">تعداد وسایل: {{ items|length }}</p>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">نام وسیله</th>
+                    <th scope="col">کمد</th>
+                    <th scope="col">وضعیت</th>
+                    <th scope="col">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.name_of_item }}</td>
+                    <td>کمد {{ locker.number_of_locker }}</td>
+                    <td>
+                        {% set loan = loan_of.get(item.id) %}
+                        {% if loan %}
+                            <span class="badge-loaned {% if loan.overdue %}is-overdue{% endif %}">امانت داده شده</span>
+                            <small class="loan-detail">{{ loan.borrower }} — تا <span dir="ltr">{{ loan.due }}</span></small>
+                        {% else %}
+                            <span class="badge-ok">موجود</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a class="btn ghost small" href="{{ url_for('item_edit', item_id=item.id) }}">ویرایش</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty">این کمد خالی است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <a class="btn primary" href="{{ url_for('item_add', locker=locker.id) }}">افزودن وسیله به این کمد</a>
+        <a class="btn ghost" href="{{ url_for('lockers_list') }}">بازگشت به لیست کمدها</a>
+    </div>
+</section>
+{% endblock %}

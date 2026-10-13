@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}لیست دوره‌ها | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">مدیریت کلاس‌ها</p>
+    <h1>لیست دوره‌ها</h1>
+    <p class="lead">تعداد دوره‌ها: {{ rows|length }} | فعال: {{ active_count }}</p>
+
+    <div class="table-wrap">
+        <table class="table wrap">
+            <thead>
+                <tr>
+                    <th scope="col">کد دوره</th>
+                    <th scope="col">نام دوره</th>
+                    <th scope="col">مدرس</th>
+                    <th scope="col">قیمت</th>
+                    <th scope="col">جلسه‌ی فعلی</th>
+                    <th scope="col">تعداد دانش‌آموزان</th>
+                    <th scope="col">وضعیت</th>
+                    <th scope="col">تاریخ شروع</th>
+                    <th scope="col">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td dir="ltr">{{ r.code or '—' }}</td>
+                    <td>{{ r.name }}</td>
+                    <td>{{ r.teacher or 'ثبت نشده' }}</td>
+                    <td>{% if r.price %}{{ r.price|money }}{% else %}<span class="text-danger">ثبت نشده</span>{% endif %}</td>
+                    <td>{{ r.session }}</td>
+                    <td>{{ r.students }}</td>
+                    <td>
+                        {% if r.state == 'active' %}
+                            <span class="badge-ok">{{ r.label }}</span>
+                        {% else %}
+                            <span class="badge-off">{{ r.label }}</span>
+                        {% endif %}
+                    </td>
+                    <td dir="ltr">{{ r.activation or '—' }}</td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="btn ghost small" href="{{ url_for('course_students', course_id=r.id) }}">دانش‌آموزان</a>
+                            <a class="btn ghost small" href="{{ url_for('course_edit', course_id=r.id) }}">{% if r.teacher %}ویرایش{% else %}ثبت مدرس{% endif %}</a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" class="empty">هنوز دوره‌ای ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <a class="btn primary" href="{{ url_for('course_add') }}">افزودن دوره</a>
+    </div>
+</section>
+{% endblock %}

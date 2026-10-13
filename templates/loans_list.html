@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}لیست امانت‌ها | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">تجهیزات</p>
+    <h1>لیست امانت‌ها</h1>
+    <p class="lead">تعداد امانت‌ها: {{ rows|length }}{% if overdue_count %} | <strong class="text-danger">مهلت‌گذشته: {{ overdue_count }}</strong>{% endif %}</p>
+
+    <div class="table-wrap">
+        <table class="table wrap">
+            <thead>
+                <tr>
+                    <th scope="col">نام وسیله</th>
+                    <th scope="col">نام امانت‌گیر</th>
+                    <th scope="col">شماره امانت‌گیر</th>
+                    <th scope="col">مدرسه امانت‌گیر</th>
+                    <th scope="col">تاریخ ثبت امانت</th>
+                    <th scope="col">تاریخ مقرر بازگشت</th>
+                    <th scope="col">وضعیت</th>
+                    <th scope="col">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr {% if r.overdue %}class="overdue-row"{% endif %}>
+                    <td>{{ r.item }}</td>
+                    <td>{{ r.borrower }}</td>
+                    <td dir="ltr">{{ r.number or '—' }}</td>
+                    <td>{{ r.school or '—' }}</td>
+                    <td dir="ltr">{{ r.registered or '—' }}</td>
+                    <td dir="ltr">{{ r.due or '—' }}</td>
+                    <td>
+                        {% if r.overdue %}
+                            <span class="badge-overdue">{{ r.status }}</span>
+                        {% else %}
+                            {{ r.status }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="post" action="{{ url_for('loan_return', loan_id=r.id) }}" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn ghost small" type="submit">ثبت بازگشت</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="empty">امانتی ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <a class="btn primary" href="{{ url_for('loan_add') }}">امانت دادن وسیله</a>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,20 @@
+<ul class="menu-bar">
+    {% for sec in nav_menu %}
+        {% if sec.href %}
+        <li class="menu-item">
+            <a class="menu-link" href="{{ sec.href }}">{{ sec.title }}</a>
+        </li>
+        {% else %}
+        <li class="menu">
+            <button type="button" class="menu-btn" aria-haspopup="true" aria-expanded="false">
+                {{ sec.title }} <span class="caret" aria-hidden="true">▾</span>
+            </button>
+            <ul class="submenu">
+                {% for href, title in sec["items"] %}
+                <li><a href="{{ href }}">{{ title }}</a></li>
+                {% endfor %}
+            </ul>
+        </li>
+        {% endif %}
+    {% endfor %}
+</ul>

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}نوشتن یادداشت | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">یادداشت‌ها</p>
+    <h1>نوشتن یادداشت</h1>
+    <p class="lead">یادداشت به نام شما{% if writer_name %} ({{ writer_name }}){% endif %} ثبت می‌شود و در تاریخ شمسی انتخاب‌شده در «یادداشت‌های امروز» نمایش داده می‌شود. امروز: <span dir="ltr">{{ today }}</span></p>
+
+    <form method="post" action="{{ url_for('note_write') }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-grid">
+            <div class="field">
+                <label for="date_of_show">تاریخ نمایش (شمسی) <span class="req" aria-hidden="true">*</span></label>
+                <input id="date_of_show" name="date_of_show" type="text" required dir="ltr"
+                       placeholder="1405/07/18" value="{{ form.get('date_of_show') or today }}">
+                <small>پیش‌فرض امروز است. مثال: ۱۴۰۵/۰۷/۱۸</small>
+            </div>
+
+            <div class="field span-3">
+                <label for="text">متن یادداشت <span class="req" aria-hidden="true">*</span></label>
+                <textarea id="text" name="text" rows="5" maxlength="1000" required>{{ form.get('text') or '' }}</textarea>
+                <small>حداکثر ۱۰۰۰ کاراکتر</small>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ثبت یادداشت</button>
+            <a class="btn ghost" href="{{ url_for('note_today') }}">یادداشت‌های امروز</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}ویرایش دانش‌آموز | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">دانش‌آموزان</p>
+    <h1>ویرایش دانش‌آموز: {{ student.first_name }} {{ student.last_name }}</h1>
+    <p class="lead">فیلدهای ستاره‌دار الزامی هستند.</p>
+
+    <form method="post" action="{{ url_for('student_edit', student_id=student.id) }}" autocomplete="off" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% include "_student_form.html" %}
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ذخیره تغییرات</button>
+            <a class="btn ghost" href="{{ url_for('student_profile', student_id=student.id) }}">انصراف</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

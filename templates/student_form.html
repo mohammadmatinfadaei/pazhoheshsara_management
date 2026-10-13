@@ -1,0 +1,72 @@
+{% from "_form_macros.html" import field, select with context %}
+
+<fieldset class="group">
+    <legend>اطلاعات شخصی</legend>
+    <div class="form-grid">
+        {{ field('first_name', 'نام', required=True, maxlength=50) }}
+        {{ field('last_name', 'نام خانوادگی', required=True, maxlength=50) }}
+        {{ field('national_id_number', 'کد ملی', required=True, dir='ltr', maxlength=10) }}
+        {{ field('date_of_birth', 'تاریخ تولد', dir='ltr', maxlength=10, placeholder='1390/05/12') }}
+        <p class="check-row">
+            <label>
+                <input type="checkbox" name="nid_override" value="1" {% if nid_override_checked() %}checked{% endif %}>
+                کد ملی را بدون بررسی رقم کنترل بپذیر (اتباع خارجی یا کد فراگیر)
+            </label>
+        </p>
+        <div class="field span-2">
+            <label for="address">آدرس</label>
+            <textarea id="address" name="address" rows="2" maxlength="300">{{ form.get('address') or '' }}</textarea>
+        </div>
+    </div>
+</fieldset>
+
+<fieldset class="group">
+    <legend>اطلاعات تحصیلی</legend>
+    <div class="form-grid">
+        {{ select('type', 'نوع دانش‌آموز', student_types, required=True) }}
+        {{ select('grade_level', 'پایه تحصیلی', grades, required=True) }}
+        {{ field('field_of_study', 'رشته', maxlength=80) }}
+        {{ field('school_name', 'نام مدرسه', maxlength=80) }}
+        {{ field('shad_number', 'شماره شاد', dir='ltr', maxlength=30) }}
+        {{ field('registration_date', 'تاریخ ثبت‌نام', dir='ltr', maxlength=10, placeholder='1405/06/01') }}
+    </div>
+</fieldset>
+
+<fieldset class="group">
+    <legend>اطلاعات پدر</legend>
+    <div class="form-grid">
+        {{ field('father_name', 'نام پدر', maxlength=80) }}
+        {{ field('father_job', 'شغل پدر', maxlength=80) }}
+        {{ select('father_educational_qualification', 'تحصیلات پدر', parent_edu_levels) }}
+        {{ field('father_number', 'تلفن همراه پدر', dir='ltr', maxlength=11, placeholder='09123456789') }}
+    </div>
+</fieldset>
+
+<fieldset class="group">
+    <legend>اطلاعات مادر</legend>
+    <div class="form-grid">
+        {{ field('mother_name_and_last_name', 'نام و نام خانوادگی مادر', maxlength=80) }}
+        {{ field('mother_job', 'شغل مادر', maxlength=80) }}
+        {{ select('mother_educational_qualification', 'تحصیلات مادر', parent_edu_levels) }}
+        {{ field('mother_number', 'تلفن همراه مادر', dir='ltr', maxlength=11, placeholder='09123456789') }}
+    </div>
+</fieldset>
+
+<fieldset class="group">
+    <legend>رمز ورود و توضیحات</legend>
+    <div class="form-grid">
+        <div class="field">
+            <label for="password">{% if is_edit %}رمز عبور جدید (اختیاری){% else %}رمز عبور <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+            <input id="password" name="password" type="password" {% if not is_edit %}required{% endif %} dir="ltr" autocomplete="new-password">
+            <small>{% if is_edit %}اگر نمی‌خواهید رمز تغییر کند، خالی بگذارید. {% endif %}حداقل ۸ کاراکتر، شامل حروف انگلیسی و عدد. دانش‌آموز و والدین با کد ملی دانش‌آموز و همین رمز وارد می‌شوند.</small>
+        </div>
+        <div class="field">
+            <label for="confirm_password">تکرار رمز عبور{% if not is_edit %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+            <input id="confirm_password" name="confirm_password" type="password" {% if not is_edit %}required{% endif %} dir="ltr" autocomplete="new-password">
+        </div>
+        <div class="field span-2">
+            <label for="note">یادداشت</label>
+            <textarea id="note" name="note" rows="3" maxlength="500">{{ form.get('note') or '' }}</textarea>
+        </div>
+    </div>
+</fieldset>

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}افزودن کمد | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card auth">
+    <p class="crumb">کمدها</p>
+    <h1>افزودن کمد</h1>
+    <p class="lead">شماره کمد باید یک عدد باشد و تکراری نباشد.</p>
+
+    <form method="post" action="{{ url_for('locker_add') }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="field">
+            <label for="number_of_locker">شماره کمد <span class="req" aria-hidden="true">*</span></label>
+            <input id="number_of_locker" name="number_of_locker" type="text" inputmode="numeric"
+                   required dir="ltr" value="{{ number_text }}">
+        </div>
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ثبت کمد</button>
+            <a class="btn ghost" href="{{ url_for('lockers_list') }}">لیست کمدها</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

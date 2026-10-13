@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}افزودن دانش‌آموز | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">دانش‌آموزان</p>
+    <h1>افزودن دانش‌آموز</h1>
+    <p class="lead">فیلدهای ستاره‌دار الزامی هستند.</p>
+
+    <form method="post" action="{{ url_for('student_add') }}" autocomplete="off" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% include "_student_form.html" %}
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ثبت دانش‌آموز</button>
+            <a class="btn ghost" href="{{ url_for('dashboard') }}">انصراف</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

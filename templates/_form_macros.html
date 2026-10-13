@@ -1,0 +1,24 @@
+{% macro field(name, label, type='text', required=False, dir=None, maxlength=None, hint=None, placeholder=None) %}
+<div class="field">
+    <label for="{{ name }}">{{ label }}{% if required %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+    <input id="{{ name }}" name="{{ name }}" type="{{ type }}"
+           {% if required %}required{% endif %}
+           {% if dir %}dir="{{ dir }}"{% endif %}
+           {% if maxlength %}maxlength="{{ maxlength }}"{% endif %}
+           {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+           value="{{ form.get(name) or '' }}">
+    {% if hint %}<small>{{ hint }}</small>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro select(name, label, options, required=False) %}
+<div class="field">
+    <label for="{{ name }}">{{ label }}{% if required %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+    <select id="{{ name }}" name="{{ name }}" {% if required %}required{% endif %}>
+        <option value="">انتخاب کنید</option>
+        {% for opt in options %}
+        <option value="{{ opt }}" {% if form.get(name) == opt %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endmacro %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}لیست تمامی کمدها | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">کمدها</p>
+    <h1>لیست تمامی کمدها</h1>
+    <p class="lead">تعداد کمدها: {{ rows|length }}</p>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">شماره کمد</th>
+                    <th scope="col">تعداد وسایل داخل کمد</th>
+                    <th scope="col">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ r.number }}</td>
+                    <td>{{ r.count }}</td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="btn ghost small" href="{{ url_for('locker_items', locker_id=r.id) }}">وسایل</a>
+                            <a class="btn danger small" href="{{ url_for('locker_delete', locker_id=r.id) }}">حذف</a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="empty">هنوز کمدی ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <a class="btn primary" href="{{ url_for('locker_add') }}">افزودن کمد</a>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}ویرایش دبیر | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">دبیران</p>
+    <h1>ویرایش دبیر: {{ teacher.first_name }} {{ teacher.last_name }}</h1>
+    <p class="lead">فیلدهای ستاره‌دار الزامی هستند.</p>
+
+    <form method="post" action="{{ url_for('teacher_edit', teacher_id=teacher.id) }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% include "_teacher_form.html" %}
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ذخیره تغییرات</button>
+            <a class="btn ghost" href="{{ url_for('teacher_profile', teacher_id=teacher.id) }}">انصراف</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}امانت دادن وسایل | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">تجهیزات</p>
+    <h1>امانت دادن وسایل</h1>
+    <p class="lead">تاریخ‌ها شمسی هستند. امروز: <span dir="ltr">{{ today }}</span></p>
+
+    <form method="post" action="{{ url_for('loan_add') }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-grid">
+            <div class="field">
+                <label for="item_id">وسیله (فقط وسایل موجود) <span class="req" aria-hidden="true">*</span></label>
+                <select id="item_id" name="item_id" required>
+                    <option value="">انتخاب کنید</option>
+                    {% for c in choices %}
+                    <option value="{{ c.id }}" {% if form.get('item_id') == c.id|string %}selected{% endif %}>{{ c.label }}</option>
+                    {% endfor %}
+                </select>
+                {% if not choices %}
+                    <small>{% if total_items %}همه‌ی وسایل هم‌اکنون امانت داده شده‌اند.{% else %}هنوز وسیله‌ای ثبت نشده است؛ ابتدا از «افزودن وسیله» وسیله اضافه کنید.{% endif %}</small>
+                {% else %}
+                    <small>وسایلی که هم‌اکنون امانت داده شده‌اند در این لیست نیستند.</small>
+                {% endif %}
+            </div>
+
+            <div class="field">
+                <label for="borrower_name">نام امانت‌گیر <span class="req" aria-hidden="true">*</span></label>
+                <input id="borrower_name" name="borrower_name" type="text" required maxlength="80"
+                       value="{{ form.get('borrower_name') or '' }}">
+            </div>
+
+            <div class="field">
+                <label for="borrower_number">شماره امانت‌گیر <span class="req" aria-hidden="true">*</span></label>
+                <input id="borrower_number" name="borrower_number" type="text" inputmode="tel" required dir="ltr"
+                       value="{{ form.get('borrower_number') or '' }}">
+            </div>
+
+            <div class="field">
+                <label for="borrower_school">مدرسه امانت‌گیر</label>
+                <input id="borrower_school" name="borrower_school" type="text" maxlength="80"
+                       value="{{ form.get('borrower_school') or '' }}">
+            </div>
+
+            <div class="field">
+                <label for="registration_date">تاریخ ثبت امانت <span class="req" aria-hidden="true">*</span></label>
+                <input id="registration_date" name="registration_date" type="text" required dir="ltr"
+                       placeholder="1405/07/18" value="{{ form.get('registration_date') or today }}">
+                <small>پیش‌فرض امروز است.</small>
+            </div>
+
+            <div class="field">
+                <label for="due_date">تاریخ مقرر برای بازگشت <span class="req" aria-hidden="true">*</span></label>
+                <input id="due_date" name="due_date" type="text" required dir="ltr"
+                       placeholder="1405/07/25" value="{{ form.get('due_date') or '' }}">
+                <small>مثال: ۱۴۰۵/۰۷/۲۵</small>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ثبت امانت</button>
+            <a class="btn ghost" href="{{ url_for('loans_list') }}">لیست امانت‌ها</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

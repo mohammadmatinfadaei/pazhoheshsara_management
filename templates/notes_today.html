@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}یادداشت‌های امروز | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">یادداشت‌ها</p>
+    <h1>یادداشت‌های امروز</h1>
+    <p class="lead">تاریخ امروز: <span dir="ltr">{{ today }}</span> | تعداد یادداشت‌ها: {{ rows|length }}</p>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">نویسنده</th>
+                 
+                    <th scope="col">یادداشت</th>
+                    <th scope="col">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ r.writer }}</td>
+                   
+                    <td class="note-text">{{ r.text }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('note_done', note_id=r.id) }}" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn primary small" type="submit">انجام شد</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty">برای امروز یادداشتی ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <a class="btn primary" href="{{ url_for('note_write') }}">نوشتن یادداشت</a>
+    </div>
+</section>
+{% endblock %}

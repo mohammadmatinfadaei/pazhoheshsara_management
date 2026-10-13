@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}افزودن دبیر | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">دبیران</p>
+    <h1>افزودن دبیر</h1>
+    <p class="lead">فیلدهای ستاره‌دار الزامی هستند.</p>
+
+    <form method="post" action="{{ url_for('teacher_add') }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% include "_teacher_form.html" %}
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ثبت دبیر</button>
+            <a class="btn ghost" href="{{ url_for('dashboard') }}">انصراف</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

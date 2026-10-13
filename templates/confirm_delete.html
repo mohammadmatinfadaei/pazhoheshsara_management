@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}حذف {{ kind }} | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">{{ crumb }}</p>
+    <h1>{{ title or ("حذف " ~ kind ~ ": " ~ person_name) }}</h1>
+
+    {% if blocked %}
+        <div class="flash error" role="alert">{{ blocked }}</div>
+        <div class="actions">
+            <a class="btn ghost" href="{{ cancel_url }}">بازگشت به پروفایل</a>
+        </div>
+    {% else %}
+        <p class="lead">{{ question or ("آیا مطمئن هستید؟ حذف " ~ kind ~ " قابل بازگشت نیست.") }}</p>
+
+        {% if extra_note %}
+        <p class="note-box">{{ extra_note }}</p>
+        {% endif %}
+
+        {% if links %}
+        <p>همراه با {{ kind }}، این اطلاعات هم حذف می‌شوند:</p>
+        <ul class="delete-list">
+            {% for label, count in links %}
+            <li>{{ label }}: {{ count }} مورد</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <form method="post" action="{{ form_action }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="actions">
+                <button class="btn danger solid" type="submit">{{ submit_label or "بله، حذف شود" }}</button>
+                <a class="btn ghost" href="{{ cancel_url }}">انصراف</a>
+            </div>
+        </form>
+    {% endif %}
+</section>
+{% endblock %}

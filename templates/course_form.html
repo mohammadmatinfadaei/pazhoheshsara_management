@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }} | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">مدیریت کلاس‌ها</p>
+    <h1>{{ heading }}</h1>
+    <p class="lead">هر دوره ۱۰ جلسه دارد. دوره تا وقتی مدرس در آن ثبت نشود فعال نمی‌شود؛ با انتخاب مدرس، دوره خودکار فعال می‌شود.</p>
+
+    <form method="post" action="{{ form_action }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-grid">
+            <div class="field">
+                <label for="course_name">نام دوره <span class="req" aria-hidden="true">*</span></label>
+                <input id="course_name" name="course_name" type="text" required maxlength="100"
+                       value="{{ form.get('course_name') or '' }}">
+            </div>
+
+            <div class="field">
+                <label for="course_code">کد دوره {% if not is_edit %}<span class="req" aria-hidden="true">*</span>{% endif %}</label>
+                {% if is_edit %}
+                    <input id="course_code" type="text" dir="ltr" value="{{ form.get('course_code') or '' }}" disabled>
+                    <small>کد دوره قابل تغییر نیست، چون بقیه‌ی جدول‌ها با آن به دوره وصل‌اند.</small>
+                {% else %}
+                    <input id="course_code" name="course_code" type="text" required dir="ltr" maxlength="30"
+                           value="{{ form.get('course_code') or '' }}">
+                    <small>یکتا باشد؛ مثلاً MATH101</small>
+                {% endif %}
+            </div>
+
+            <div class="field">
+                <label for="price">قیمت دوره برای هر دانش‌آموز <span class="req" aria-hidden="true">*</span></label>
+                <input id="price" name="price" type="text" inputmode="numeric" required dir="ltr"
+                       value="{{ form.get('price') or '' }}">
+                <small>به عدد؛ مثلاً 2,500,000. بیعانه از همین مبلغ کم می‌شود.</small>
+            </div>
+
+            <div class="field">
+                <label for="activation_date">تاریخ شروع (اختیاری)</label>
+                <input id="activation_date" name="activation_date" type="text" dir="ltr" maxlength="10"
+                       placeholder="1405/08/01" value="{{ form.get('activation_date') or '' }}">
+                <small>تاریخ شمسی؛ می‌توانید خالی بگذارید.</small>
+            </div>
+
+            <div class="field">
+                <label for="teacher_id">مدرس</label>
+                <select id="teacher_id" name="teacher_id">
+                    <option value="">بدون مدرس (دوره غیرفعال می‌ماند)</option>
+                    {% for tid, label in teachers %}
+                    <option value="{{ tid }}" {% if form.get('teacher_id') == tid|string %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {% if not teachers %}<small>هنوز دبیری ثبت نشده است.</small>{% endif %}
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn primary" type="submit">{{ submit_label }}</button>
+            <a class="btn ghost" href="{{ cancel_url }}">انصراف</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

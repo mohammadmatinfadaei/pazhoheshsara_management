@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}اجاره کلاس به دبیران متفرقه | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">مدیریت کلاس‌ها</p>
+    <h1>اجاره کلاس به دبیران متفرقه</h1>
+    <p class="lead">کلاس را برای یک بازه‌ی ساعتی به یک دبیر متفرقه اجاره بدهید و مبلغ دریافتی را ثبت کنید. امروز: <span dir="ltr">{{ today }}</span></p>
+
+    <form method="post" action="{{ url_for('rent_add') }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-grid">
+            <div class="field">
+                <label for="class_id">کلاس <span class="req" aria-hidden="true">*</span></label>
+                <select id="class_id" name="class_id" required>
+                    <option value="">انتخاب کنید</option>
+                    {% for cid, label in classes %}
+                    <option value="{{ cid }}" {% if form.get('class_id') == cid|string %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {% if not classes %}<small>هنوز کلاسی ثبت نشده است.</small>{% else %}<small>کلاس رزروشده هم دوباره اجاره داده می‌شود، به شرط اینکه ساعتش با رزروهای قبلی تداخل نداشته باشد.</small>{% endif %}
+            </div>
+
+            <div class="field">
+                <label for="teacher_id">دبیر متفرقه <span class="req" aria-hidden="true">*</span></label>
+                <select id="teacher_id" name="teacher_id" required>
+                    <option value="">انتخاب کنید</option>
+                    {% for tid, label in teachers %}
+                    <option value="{{ tid }}" {% if form.get('teacher_id') == tid|string %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {% if not teachers %}<small>هنوز دبیر متفرقه‌ای ثبت نشده است.</small>{% endif %}
+            </div>
+
+            <div class="field">
+                <label for="date">تاریخ (شمسی) <span class="req" aria-hidden="true">*</span></label>
+                <input id="date" name="date" type="text" required dir="ltr" placeholder="1405/07/20"
+                       value="{{ form.get('date') or today }}">
+                <small>پیش‌فرض امروز است.</small>
+            </div>
+
+            <div class="field">
+                <label for="start_time">از ساعت <span class="req" aria-hidden="true">*</span></label>
+                <input id="start_time" name="start_time" type="text" required dir="ltr" placeholder="14:00" maxlength="5"
+                       value="{{ form.get('start_time') or '' }}">
+            </div>
+
+            <div class="field">
+                <label for="end_time">تا ساعت <span class="req" aria-hidden="true">*</span></label>
+                <input id="end_time" name="end_time" type="text" required dir="ltr" placeholder="16:00" maxlength="5"
+                       value="{{ form.get('end_time') or '' }}">
+                <small>ساعت ۲۴ساعته؛ پایان باید بعد از شروع باشد.</small>
+            </div>
+
+            <div class="field">
+                <label for="amount">مبلغ اجاره‌ی دریافتی <span class="req" aria-hidden="true">*</span></label>
+                <input id="amount" name="amount" type="text" inputmode="numeric" required dir="ltr"
+                       value="{{ form.get('amount') or '' }}">
+                <small>به عدد؛ مثلاً 300,000</small>
+            </div>
+        </div>
+
+        {% if bookings %}
+        <div class="note-box">
+            <strong>رزروهای ثبت‌شده‌ی پیش‌رو (برای جلوگیری از تداخل):</strong>
+            <ul class="booking-list">
+                {% for num, slots in bookings %}
+                <li><span dir="ltr">{{ num }}</span>:
+                    {% for day, start, end, label in slots %}<span dir="ltr">{{ day }} {{ start }}–{{ end }}</span> ({{ label }}){% if not loop.last %}، {% endif %}{% endfor %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ثبت اجاره</button>
+            <a class="btn ghost" href="{{ url_for('rentals_list') }}">لیست اجاره‌ها</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

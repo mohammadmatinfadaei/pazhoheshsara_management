@@ -1,119 +1,47 @@
+{% extends "base.html" %}
+{% block title %}ورود | پژوهش‌سرا{% endblock %}
 
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
+{% block content %}
+<section class="card auth">
+    <h1>ورود به سامانه</h1>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <form method="post" action="{{ url_for('login') }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <title>ورود | کتابخانه پژوهشسرا</title>
+        <fieldset class="roles">
+            <legend>نقش خود را انتخاب کنید</legend>
+            {% for key, label in roles.items() %}
+                <label class="role-option">
+                    <input type="radio" name="role" value="{{ key }}"
+                           {% if key == selected_role %}checked{% endif %}>
+                    <span>{{ label }}</span>
+                </label>
+            {% endfor %}
+        </fieldset>
 
-
-    <link rel="stylesheet" href="/static/style/login.css">
-</head>
-
-
-<body>
-{% include 'flash.html' %}
-    <main class="auth-page">
-
-        <div class="auth-card">
-
-            <div class="auth-logo">
-                📚
-            </div>
-
-            <h1>
-                خوش آمدید
-            </h1>
-
-          
-
-            <form method="POST" action="/login">
-
-                <div class="input-group">
-
-                    <label for="username">
-                        نام کاربری
-                    </label>
-
-                    <input
-                        type="text"
-                        id="username"
-                        name="username"
-                        placeholder="نام کاربری خود را وارد کنید"
-                        required
-                    >
-
-                </div>
-
-<div class="input-group">
-
-    <label for="password">
-        رمز عبور
-    </label>
-
-    <div class="password-box">
-
-        <input
-            type="password"
-            id="password"
-            name="password"
-            placeholder="رمز عبور خود را وارد کنید"
-            required
-        >
-
-        <button
-            type="button"
-            class="password-toggle"
-            onclick="togglePassword('password', this)"
-        >
-            👁
-        </button>
-
-    </div>
-
-</div>
-
-
-                <div class="buttons">
-
-                    <button
-                        type="submit"
-                        class="btn submit-btn"
-                    >
-                        ورود
-                    </button>
-
-                    <a
-                      
-                        class="btn back-btn"
-                        onclick="history.back()"
-                    >
-                        بازگشت
-                    </a>
-
-                </div>
-
-            </form>
-
-
-            <div class="auth-link">
-
-                حساب کاربری ندارید؟
-
-                <a href="/register">
-                    ثبت نام
-                </a>
-
-            </div>
-
+        <div class="field">
+            <label for="identifier" id="identifier-label">کد ملی دانش‌آموز</label>
+            <input id="identifier" name="identifier" type="text" inputmode="numeric"
+                   maxlength="20" required >
         </div>
 
-    </main>
+        <div class="field">
+            <label for="password">رمز عبور</label>
+            <div class="password-wrap">
+                <input id="password" name="password" type="password" required 
+                       autocomplete="current-password">
+                <button type="button" id="toggle-password" class="link-btn">نمایش</button>
+            </div>
+        </div>
 
-</body>
-<script src="/static/script/password_show.js"></script>
+        <button class="btn primary full" type="submit">ورود</button>
+    </form>
 
-</html>
+    <p class="hint">کارمند جدید هستید؟ <a href="{{ url_for('register') }}">ثبت‌نام با کد ورود</a></p>
+    <p class="hint small">مدیران با کد ملی و از بخش «کارمندان آموزشگاه» وارد می‌شوند.</p>
+</section>
+{% endblock %}
 
+{% block scripts %}
+<script src="/static/script/login.js"></script>
+{% endblock %}

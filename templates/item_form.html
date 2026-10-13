@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }} | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card auth">
+    <p class="crumb">تجهیزات</p>
+    <h1>{{ heading }}</h1>
+    <p class="lead">کمد اختیاری است؛ اگر انتخاب نکنید وسیله «بی‌کمد» می‌ماند.</p>
+
+    <form method="post" action="{{ form_action }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="field">
+            <label for="name_of_item">نام وسیله <span class="req" aria-hidden="true">*</span></label>
+            <input id="name_of_item" name="name_of_item" type="text" required maxlength="100"
+                   value="{{ form.get('name_of_item') or '' }}">
+        </div>
+
+        <div class="field">
+            <label for="locker_id">کمد</label>
+            <select id="locker_id" name="locker_id">
+                <option value="">بدون کمد</option>
+                {% for l in lockers %}
+                <option value="{{ l.id }}" {% if form.get('locker_id') == l.id|string %}selected{% endif %}>کمد {{ l.number_of_locker }}</option>
+                {% endfor %}
+            </select>
+            {% if not lockers %}<small>هنوز کمدی ثبت نشده است.</small>{% endif %}
+        </div>
+
+        <div class="actions">
+            <button class="btn primary" type="submit">{{ submit_label }}</button>
+            <a class="btn ghost" href="{{ cancel_url }}">انصراف</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}لیست وسایل | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">تجهیزات</p>
+    <h1>لیست وسایل</h1>
+    <p class="lead">تعداد وسایل: {{ items|length }} | موجود: {{ available }} | امانت داده‌شده: {{ items|length - available }}</p>
+
+    <div class="table-wrap">
+        <table class="table wrap">
+            <thead>
+                <tr>
+                    <th scope="col">نام وسیله</th>
+                    <th scope="col">کمد</th>
+                    <th scope="col">وضعیت</th>
+                    <th scope="col">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>
+                        {% if item.locker_id %}
+                            <a href="{{ url_for('locker_items', locker_id=item.locker_id) }}">کمد {{ item.locker_number }}</a>
+                        {% else %}
+                            بی‌کمد
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.loan %}
+                            <span class="badge-loaned {% if item.loan.overdue %}is-overdue{% endif %}">امانت داده شده</span>
+                            <small class="loan-detail">{{ item.loan.borrower }} — تا <span dir="ltr">{{ item.loan.due }}</span>{% if item.loan.overdue %} (مهلت تمام شده){% endif %}</small>
+                        {% else %}
+                            <span class="badge-ok">موجود</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="btn ghost small" href="{{ url_for('item_edit', item_id=item.id) }}">ویرایش</a>
+                            <a class="btn danger small" href="{{ url_for('item_delete', item_id=item.id) }}">حذف</a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty">هنوز وسیله‌ای ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <a class="btn primary" href="{{ url_for('item_add') }}">افزودن وسیله</a>
+    </div>
+</section>
+{% endblock %}

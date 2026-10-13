@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}اجاره کلاس برای دوره‌ها | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">مدیریت کلاس‌ها</p>
+    <h1>اجاره کلاس برای دوره‌ها</h1>
+    <p class="lead">دوره را در یک کلاس و برای یک بازه‌ی ساعتی برنامه‌ریزی کنید. با شروع کلاس، شماره‌ی جلسه‌ی دوره خودکار یکی اضافه می‌شود. امروز: <span dir="ltr">{{ today }}</span></p>
+
+    <form method="post" action="{{ url_for('schedule_add') }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-grid">
+            <div class="field">
+                <label for="course_id">دوره <span class="req" aria-hidden="true">*</span></label>
+                <select id="course_id" name="course_id" required>
+                    <option value="">انتخاب کنید</option>
+                    {% for cid, label in courses %}
+                    <option value="{{ cid }}" {% if form.get('course_id') == cid|string %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {% if not courses %}<small>دوره‌ی قابل برنامه‌ریزی وجود ندارد: دوره باید فعال (دارای مدرس) باشد و هنوز جلسه‌ی خالی داشته باشد.</small>
+                {% else %}<small>فقط دوره‌های فعال که هنوز جلسه‌ی خالی دارند.</small>{% endif %}
+            </div>
+
+            <div class="field">
+                <label for="class_id">کلاس <span class="req" aria-hidden="true">*</span></label>
+                <select id="class_id" name="class_id" required>
+                    <option value="">انتخاب کنید</option>
+                    {% for cid, label in classes %}
+                    <option value="{{ cid }}" {% if form.get('class_id') == cid|string %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {% if not classes %}<small>هنوز کلاسی ثبت نشده است.</small>{% endif %}
+            </div>
+
+            <div class="field">
+                <label for="date">تاریخ (شمسی) <span class="req" aria-hidden="true">*</span></label>
+                <input id="date" name="date" type="text" required dir="ltr" placeholder="1405/07/20"
+                       value="{{ form.get('date') or today }}">
+            </div>
+
+            <div class="field">
+                <label for="start_time">از ساعت <span class="req" aria-hidden="true">*</span></label>
+                <input id="start_time" name="start_time" type="text" required dir="ltr" placeholder="16:00" maxlength="5"
+                       value="{{ form.get('start_time') or '' }}">
+            </div>
+
+            <div class="field">
+                <label for="end_time">تا ساعت <span class="req" aria-hidden="true">*</span></label>
+                <input id="end_time" name="end_time" type="text" required dir="ltr" placeholder="18:00" maxlength="5"
+                       value="{{ form.get('end_time') or '' }}">
+                <small>ساعت ۲۴ساعته؛ پایان باید بعد از شروع باشد.</small>
+            </div>
+        </div>
+
+        {% if bookings %}
+        <div class="note-box">
+            <strong>رزروهای ثبت‌شده‌ی پیش‌رو (برای جلوگیری از تداخل):</strong>
+            <ul class="booking-list">
+                {% for num, slots in bookings %}
+                <li><span dir="ltr">{{ num }}</span>:
+                    {% for day, start, end, label in slots %}<span dir="ltr">{{ day }} {{ start }}–{{ end }}</span> ({{ label }}){% if not loop.last %}، {% endif %}{% endfor %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ثبت برنامه</button>
+            <a class="btn ghost" href="{{ url_for('schedules_list') }}">لیست دوره‌ها در کلاس‌ها</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

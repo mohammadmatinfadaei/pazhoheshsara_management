@@ -1,152 +1,61 @@
+{% extends "base.html" %}
+{% block title %}ثبت‌نام کارمند | پژوهش‌سرا{% endblock %}
 
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
+{% block content %}
+<section class="card auth">
+    <h1>ثبت‌نام کارمند آموزشگاه</h1>
+    <p class="lead">برای ثبت‌نام، کد ورودی را که مدیر به شما داده است وارد کنید.</p>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <form method="post" action="{{ url_for('register') }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <title>ثبت نام | کتابخانه پژوهشسرا</title>
-
-    <link rel="stylesheet" href="/static/style/register.css">
-</head>
-
-
-<body>
-{% include 'flash.html' %}
-    <main class="auth-page">
-
-        <div class="auth-card">
-
-            <div class="auth-logo">
-                📖
+        <div class="row">
+            <div class="field">
+                <label for="first_name">نام</label>
+                <input id="first_name" name="first_name" type="text" maxlength="50" required
+                       value="{{ form.get('first_name', '') }}">
             </div>
-
-            <h1>
-                ساخت حساب کاربری
-            </h1>
-
-           
-
-            <form method="POST" action="/register">
-
-                <div class="input-group">
-
-                    <label for="first_name">
-                        نام
-                    </label>
-
-                    <input
-                        type="text"
-                        id="first_name"
-                        name="first_name"
-                        placeholder="نام خود را وارد کنید"
-                        required
-                    >
-
-                </div>
-
-
-                <div class="input-group">
-
-                    <label for="last_name">
-                        نام خانوادگی
-                    </label>
-
-                    <input
-                        type="text"
-                        id="last_name"
-                        name="last_name"
-                        placeholder="نام خانوادگی خود را وارد کنید"
-                        required
-                    >
-
-                </div>
-
-
-                <div class="input-group">
-
-                    <label for="username">
-                        نام کاربری
-                    </label>
-
-                    <input
-                        type="text"
-                        id="username"
-                        name="username"
-                        placeholder="نام کاربری خود را انتخاب کنید"
-                        required
-                    >
-
-                </div>
-
-
-              <div class="input-group">
-
-    <label for="password">
-        رمز عبور
-    </label>
-
-    <div class="password-box">
-
-        <input
-            type="password"
-            id="password"
-            name="password"
-            placeholder="رمز عبور خود را وارد کنید"
-            required
-        >
-
-        <button
-            type="button"
-            class="password-toggle"
-            onclick="togglePassword('password', this)"
-        >
-            👁
-        </button>
-
-    </div>
-
-</div>
-
-
-                <div class="buttons">
-
-                    <button
-                        type="submit"
-                        class="btn submit-btn"
-                    >
-                        ثبت نام
-                    </button>
-
-                    <a
-                      
-                        class="btn back-btn" 
-                        onclick="history.back()"
-                    >
-                        بازگشت
-                    </a>
-
-                </div>
-
-            </form>
-
-
-            <div class="auth-link">
-
-                قبلاً حساب ساخته‌اید؟
-
-                <a href="/login">
-                    ورود
-                </a>
-
+            <div class="field">
+                <label for="last_name">نام خانوادگی</label>
+                <input id="last_name" name="last_name" type="text" maxlength="50" required
+                       value="{{ form.get('last_name', '') }}">
             </div>
-
         </div>
 
-    </main>
+        <div class="field">
+            <label for="personnel_code">کد پرسنلی</label>
+            <input id="personnel_code" name="personnel_code" type="text" inputmode="numeric"
+                   maxlength="20" required dir="ltr" value="{{ form.get('personnel_code', '') }}">
+        </div>
 
-</body>
-<script src="/static/script/password_show.js"></script>
-</html>
+        <div class="field">
+            <label for="national_id_number">کد ملی</label>
+            <input id="national_id_number" name="national_id_number" type="text" inputmode="numeric" required dir="ltr" value="{{ form.get('national_id_number', '') }}">
+        </div>
 
+        <div class="field">
+            <label for="password">رمز عبور</label>
+            <input id="password" name="password" type="password" required dir="ltr"
+                   autocomplete="new-password">
+            <small>حداقل ۸ کاراکتر، شامل حروف انگلیسی و عدد</small>
+        </div>
+
+        <div class="field">
+            <label for="confirm_password">تکرار رمز عبور</label>
+            <input id="confirm_password" name="confirm_password" type="password" required dir="ltr"
+                   autocomplete="new-password">
+        </div>
+
+        <div class="field">
+            <label for="entry_code">کد ورود</label>
+            <input id="entry_code" name="entry_code" type="password" required dir="ltr"
+                   autocomplete="off">
+            <small>این کد را مدیر آموزشگاه در اختیار شما می‌گذارد.</small>
+        </div>
+
+        <button class="btn primary full" type="submit">ثبت‌نام</button>
+    </form>
+
+    <p class="hint">قبلاً ثبت‌نام کرده‌اید؟ <a href="{{ url_for('login') }}">ورود</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}افزودن کلاس | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card auth">
+    <p class="crumb">مدیریت کلاس‌ها</p>
+    <h1>افزودن کلاس</h1>
+    <p class="lead">شماره کلاس می‌تواند حرف هم داشته باشد (مثل A1) و تکراری نباشد. کلاس جدید همیشه «غیرفعال» ثبت می‌شود و وقتی کلاسی در آن برگزار شود فعال می‌شود.</p>
+
+    <form method="post" action="{{ url_for('class_add') }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="field">
+            <label for="class_number">شماره کلاس <span class="req" aria-hidden="true">*</span></label>
+            <input id="class_number" name="class_number" type="text" required dir="ltr" maxlength="20"
+                   value="{{ form.get('class_number') or '' }}">
+        </div>
+
+        <div class="field">
+            <label for="floor_number">طبقه <span class="req" aria-hidden="true">*</span></label>
+            <select id="floor_number" name="floor_number" required>
+                <option value="">انتخاب کنید</option>
+                {% for f in floors %}
+                <option value="{{ f }}" {% if form.get('floor_number') == f|string %}selected{% endif %}>طبقه {{ f }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ثبت کلاس</button>
+            <a class="btn ghost" href="{{ url_for('classes_list') }}">لیست کلاس‌ها</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

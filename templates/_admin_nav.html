@@ -1,0 +1,14 @@
+<ul class="menu-bar">
+    {% for sec in admin_menu %}
+    <li class="menu">
+        <button type="button" class="menu-btn" aria-haspopup="true" aria-expanded="false">
+            {{ sec.title }} <span class="caret" aria-hidden="true">▾</span>
+        </button>
+        <ul class="submenu">
+            {% for key, title in sec["items"] %}
+            <li><a href="{{ url_for('admin_page', section=sec.key, item=key) }}">{{ title }}</a></li>
+            {% endfor %}
+        </ul>
+    </li>
+    {% endfor %}
+</ul>

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{% block page_title %}{% endblock %} | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">دبیران</p>
+    <h1>{% block heading %}{% endblock %}</h1>
+    <p class="lead">تعداد دبیران{% if q %} (نتیجه جستجو){% endif %}: {{ total }}</p>
+
+    <form class="toolbar" method="get" action="{{ url_for(list_endpoint) }}" role="search">
+        <label class="sr-only" for="q">جستجو</label>
+        <input id="q" name="q" type="search" value="{{ q }}" maxlength="60"
+               placeholder="نام، کد ملی، شماره پرسنلی یا تلفن">
+        <button class="btn primary small" type="submit">جستجو</button>
+        {% if q %}
+        <a class="btn ghost small" href="{{ url_for(list_endpoint) }}">پاک کردن</a>
+        {% endif %}
+    </form>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">نام و نام خانوادگی</th>
+                    <th scope="col">کد ملی</th>
+                    <th scope="col">شماره پرسنلی</th>
+                    <th scope="col">تلفن همراه</th>
+                    <th scope="col">پروفایل</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in teachers %}
+                <tr>
+                    <td>{{ t.first_name }} {{ t.last_name }}</td>
+                    <td dir="ltr">{{ t.national_id_number or '—' }}</td>
+                    <td dir="ltr">{{ t.personnel_number or '—' }}</td>
+                    <td dir="ltr">{{ t.phone_number or '—' }}</td>
+                    <td>
+                        <a class="btn ghost small" href="{{ url_for('teacher_profile', teacher_id=t.id) }}">پروفایل دبیر</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="empty">دبیری پیدا نشد.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <nav class="pager" aria-label="صفحه‌بندی">
+        {% if pagination.has_prev %}
+        <a class="btn ghost small" href="{{ url_for(list_endpoint, page=pagination.prev_num, q=q or None) }}">صفحه قبل</a>
+        {% else %}
+        <span class="btn ghost small disabled" aria-disabled="true">صفحه قبل</span>
+        {% endif %}
+
+        <span class="pager-info">صفحه {{ pagination.page }} از {{ pages }}</span>
+
+        {% if pagination.has_next %}
+        <a class="btn ghost small" href="{{ url_for(list_endpoint, page=pagination.next_num, q=q or None) }}">صفحه بعد</a>
+        {% else %}
+        <span class="btn ghost small disabled" aria-disabled="true">صفحه بعد</span>
+        {% endif %}
+    </nav>
+
+    {% block extra %}{% endblock %}
+</section>
+{% endblock %}

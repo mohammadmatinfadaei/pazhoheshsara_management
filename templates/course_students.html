@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}دانش‌آموزان دوره {{ course.course_name }} | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">مدیریت کلاس‌ها</p>
+    <h1>دانش‌آموزان دوره: {{ course.course_name }}</h1>
+    <p class="lead">
+        کد دوره: <span dir="ltr">{{ course.course_code or '—' }}</span> |
+        قیمت: {% if course.price %}{{ course.price|money }}{% else %}<span class="text-danger">ثبت نشده</span>{% endif %} |
+        مدرس: {{ teacher or 'ثبت نشده' }} |
+        تعداد دانش‌آموزان: {{ rows|length }}
+    </p>
+    <p class="lead">مجموع بیعانه‌ها: {{ total_deposit|money }} | مجموع بدهی‌های باقی‌مانده: <strong class="{% if total_debt %}text-danger{% endif %}">{{ total_debt|money }}</strong></p>
+
+    {% if course.end_of_course %}
+        <div class="flash error" role="alert">این دوره پایان یافته است و دانش‌آموز جدید نمی‌پذیرد.</div>
+    {% elif not course.price %}
+        <div class="flash error" role="alert">قیمت این دوره ثبت نشده است. ابتدا <a href="{{ url_for('course_edit', course_id=course.id) }}">قیمت دوره را ثبت کنید</a>، بعد دانش‌آموز اضافه کنید.</div>
+    {% else %}
+    <form method="post" action="{{ url_for('course_students', course_id=course.id) }}" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <fieldset class="group">
+            <legend>افزودن دانش‌آموز به دوره (یکی‌یکی)</legend>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="national_id_number">کد ملی دانش‌آموز <span class="req" aria-hidden="true">*</span></label>
+                    <input id="national_id_number" name="national_id_number" type="text" required dir="ltr"
+                           list="student-list" value="{{ form.get('national_id_number') or '' }}">
+                    <datalist id="student-list">
+                        {% for nid, name in suggestions %}<option value="{{ nid }}">{{ name }}</option>{% endfor %}
+                    </datalist>
+                    <small>با تایپ کد ملی، نام دانش‌آموزان ثبت‌شده (که هنوز در این دوره نیستند) پیشنهاد می‌شود.</small>
+                </div>
+
+                <div class="field">
+                    <label for="deposit">مبلغ بیعانه‌ی دریافتی <span class="req" aria-hidden="true">*</span></label>
+                    <input id="deposit" name="deposit" type="text" inputmode="numeric" required dir="ltr"
+                           value="{{ form.get('deposit') or '' }}">
+                    <small>از قیمت دوره ({{ course.price|money }}) کم می‌شود و باقی‌مانده بدهی دانش‌آموز است. اگر بیعانه‌ای دریافت نشده ۰ بنویسید.</small>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn primary" type="submit">ثبت دانش‌آموز در دوره</button>
+            </div>
+        </fieldset>
+    </form>
+    {% endif %}
+
+    <div class="table-wrap">
+        <table class="table wrap">
+            <thead>
+                <tr>
+                    <th scope="col">نام و نام خانوادگی</th>
+                    <th scope="col">کد ملی</th>
+                    <th scope="col">بیعانه</th>
+                    <th scope="col">پرداخت‌های بعدی</th>
+                    <th scope="col">بدهی باقی‌مانده</th>
+                    <th scope="col">تسویه</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ r.name }}</td>
+                    <td dir="ltr">{{ r.national_id or '—' }}</td>
+                    <td>{{ r.deposit|money }}</td>
+                    <td>{{ r.settled|money }}</td>
+                    <td>{% if r.debt %}<strong class="text-danger">{{ r.debt|money }}</strong>{% else %}0{% endif %}</td>
+                    <td>
+                        {% if r.debt %}
+                        <form method="post" action="{{ url_for('course_payment', link_id=r.link_id) }}" class="pay-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <label class="sr-only" for="amount-{{ r.link_id }}">مبلغ پرداخت</label>
+                            <input id="amount-{{ r.link_id }}" name="amount" type="text" inputmode="numeric" dir="ltr"
+                                   placeholder="حداکثر {{ r.debt|money }}" required>
+                            <button class="btn primary small" type="submit">ثبت پرداخت</button>
+                        </form>
+                        {% else %}
+                            <span class="badge-ok">تسویه شده</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty">هنوز دانش‌آموزی در این دوره ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <a class="btn ghost" href="{{ url_for('courses_list') }}">لیست دوره‌ها</a>
+        <a class="btn ghost" href="{{ url_for('enroll_pick') }}">انتخاب دوره‌ی دیگر</a>
+    </div>
+</section>
+{% endblock %}

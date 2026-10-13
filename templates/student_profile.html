@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ student.first_name }} {{ student.last_name }} | پروفایل دانش‌آموز{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">دانش‌آموزان</p>
+    <h1>پروفایل دانش‌آموز: {{ student.first_name }} {{ student.last_name }}</h1>
+
+    <section class="photos" aria-label="تصاویر دانش‌آموز">
+        {% for kind, title, attr in [('face', 'عکس چهره', 'face_photo'), ('certificate', 'عکس شناسنامه', 'birth_certificate_photo')] %}
+        <div class="photo-card">
+            <h2>{{ title }}</h2>
+            {% if student[attr] %}
+                <img src="{{ url_for('student_photo', student_id=student.id, kind=kind) }}"
+                     alt="{{ title }} {{ student.first_name }} {{ student.last_name }}" loading="lazy">
+                <a class="btn ghost small" href="{{ url_for('student_photo', student_id=student.id, kind=kind, download=1) }}">دانلود {{ title }}</a>
+            {% else %}
+                <div class="photo-empty">تصویری ثبت نشده است</div>
+                <span class="btn ghost small disabled" aria-disabled="true">دانلود {{ title }}</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+
+    {% for title, rows in groups %}
+    <section class="group-view">
+        <h2>{{ title }}</h2>
+        <dl class="info">
+            {% for label, attr in rows %}
+            <div class="info-row">
+                <dt>{{ label }}</dt>
+                <dd>{{ student[attr] or '—' }}</dd>
+            </div>
+            {% endfor %}
+        </dl>
+    </section>
+    {% endfor %}
+
+    <div class="actions">
+        <a class="btn primary" href="{{ url_for('student_edit', student_id=student.id) }}">ویرایش اطلاعات</a>
+        <a class="btn ghost" href="{{ url_for(back_endpoint) }}">بازگشت به لیست</a>
+        <a class="btn danger" href="{{ url_for('student_delete', student_id=student.id) }}">حذف دانش‌آموز</a>
+    </div>
+</section>
+{% endblock %}

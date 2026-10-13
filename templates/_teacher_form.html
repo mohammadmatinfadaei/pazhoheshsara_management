@@ -1,0 +1,68 @@
+{% from "_form_macros.html" import field, select with context %}
+
+<fieldset class="group">
+            <legend>اطلاعات شخصی</legend>
+            <div class="form-grid">
+                {{ field('first_name', 'نام', required=True, maxlength=50) }}
+                {{ field('last_name', 'نام خانوادگی', required=True, maxlength=50) }}
+                {{ field('father_name', 'نام پدر', maxlength=50) }}
+                {{ field('date_of_birth', 'تاریخ تولد', dir='ltr', maxlength=10, placeholder='1380/05/12') }}
+                {{ field('national_id_number', 'کد ملی', required=True, dir='ltr') }}
+                {{ select('marital_status', 'وضعیت تأهل', marital_statuses) }}
+            </div>
+        </fieldset>
+
+        <fieldset class="group">
+            <legend>اطلاعات تماس</legend>
+            <div class="form-grid">
+                {{ field('phone_number', 'تلفن همراه', required=True, dir='ltr', maxlength=11, placeholder='09123456789') }}
+                {{ field('landline_number', 'تلفن ثابت', dir='ltr', maxlength=11) }}
+                {{ field('email', 'ایمیل', type='email', dir='ltr', maxlength=80) }}
+                {{ field('postal_code', 'کد پستی', dir='ltr', maxlength=10) }}
+                <div class="field span-2">
+                    <label for="address">آدرس</label>
+                    <textarea id="address" name="address" rows="2" maxlength="300">{{ form.get('address') or '' }}</textarea>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="group">
+            <legend>اطلاعات شغلی و تحصیلی</legend>
+            <div class="form-grid">
+                {{ field('personnel_number', 'شماره پرسنلی', required=True, dir='ltr', maxlength=20) }}
+                {{ select('type', 'نوع دبیر', teacher_types, required=True) }}
+                {{ field('date_of_hire', 'تاریخ استخدام', dir='ltr', maxlength=10, placeholder='1403/06/01') }}
+                {{ field('place_of_employment', 'محل اشتغال', maxlength=80) }}
+                {{ select('educational_qualification', 'مدرک تحصیلی', edu_levels) }}
+                {{ field('university_major', 'رشته دانشگاهی', maxlength=80) }}
+                {{ field('year_of_obtaining_the_degree', 'سال اخذ مدرک', dir='ltr', maxlength=4, placeholder='1395') }}
+            </div>
+        </fieldset>
+
+        <fieldset class="group">
+            <legend>اطلاعات مالی</legend>
+            <div class="form-grid">
+                {{ field('credit_card_number', 'شماره کارت', dir='ltr', maxlength=19) }}
+                {{ field('account_number', 'شماره حساب', dir='ltr', maxlength=30) }}
+                {{ field('iban', 'شماره شبا', dir='ltr', maxlength=26, placeholder='IR000000000000000000000000') }}
+            </div>
+        </fieldset>
+
+        <fieldset class="group">
+            <legend>رمز ورود و توضیحات</legend>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="password">{% if is_edit %}رمز عبور جدید (اختیاری){% else %}رمز عبور <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+                    <input id="password" name="password" type="password" {% if not is_edit %}required{% endif %} dir="ltr" autocomplete="new-password">
+                    <small>{% if is_edit %}اگر نمی‌خواهید رمز تغییر کند، خالی بگذارید. {% endif %}حداقل ۸ کاراکتر، شامل حروف انگلیسی و عدد</small>
+                </div>
+                <div class="field">
+                    <label for="confirm_password">تکرار رمز عبور{% if not is_edit %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+                    <input id="confirm_password" name="confirm_password" type="password" {% if not is_edit %}required{% endif %} dir="ltr" autocomplete="new-password">
+                </div>
+                <div class="field span-2">
+                    <label for="note">یادداشت</label>
+                    <textarea id="note" name="note" rows="3" maxlength="500">{{ form.get('note') or '' }}</textarea>
+                </div>
+            </div>
+        </fieldset>
