@@ -43,7 +43,13 @@
                         <div class="row-actions">
                             <a class="btn ghost small" href="{{ url_for('course_students', course_id=r.id) }}">دانش‌آموزان</a>
                             <a class="btn ghost small" href="{{ url_for('course_edit', course_id=r.id) }}">{% if r.teacher %}ویرایش{% else %}ثبت مدرس{% endif %}</a>
+                            {% if r.delete_reason %}
+                                <span class="btn ghost small disabled" aria-disabled="true" title="{{ r.delete_reason }}">حذف نمی‌شود</span>
+                            {% else %}
+                                <a class="btn danger small" href="{{ url_for('course_delete', course_id=r.id) }}">حذف</a>
+                            {% endif %}
                         </div>
+                        {% if r.delete_reason %}<small class="loan-detail">{{ r.delete_reason }}</small>{% endif %}
                     </td>
                 </tr>
                 {% else %}

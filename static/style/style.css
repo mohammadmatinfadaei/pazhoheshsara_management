@@ -776,3 +776,41 @@ input:focus-visible {
 }
 
 .booking-list { margin: 6px 0 0; padding-inline-start: 20px; line-height: 2; }
+
+/* ---------- finance ---------- */
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+    margin: 0 0 22px;
+}
+
+.stat {
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--teal);
+}
+
+.stat.total { border-top-color: var(--gold); }
+
+.stat span { display: block; color: var(--ink-soft); font-size: 0.88rem; }
+
+.stat strong { display: block; margin-top: 4px; font-size: 1.35rem; }
+
+.meter {
+    width: 110px;
+    height: 10px;
+    border: 0;
+    border-radius: 5px;
+    background: #e4e9f0;
+    vertical-align: middle;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.meter::-webkit-progress-bar { background: #e4e9f0; border-radius: 5px; }
+.meter::-webkit-progress-value { background: var(--teal); border-radius: 5px; }
+.meter::-moz-progress-bar { background: var(--teal); border-radius: 5px; }
+
+.section-title { margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); font-size: 1.1rem; }

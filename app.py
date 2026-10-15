@@ -20,7 +20,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from models import (
     Admins, Attendance, Classes, Courses, Linking_the_course_to_the_class,
     Linking_the_items_to_the_locker, Linking_the_student_to_the_course, List_of_items, Loans, Lockers, Notes,
-    Payments, Renting_out_a_class, Students, Teachers, app, db
+    Payments, Renting_out_a_class, Students, TeacherPayments, Teachers, app, db
 )
 
 
@@ -304,8 +304,10 @@ def security_headers(resp):
                             "students_export_excel_type", "class_add", "classes_list", "class_delete",
                             "rent_add", "rentals_list", "rental_cancel",
                             "schedule_add", "schedules_list", "schedule_cancel",
+                            "finance_today", "finance_debts", "finance_receivables",
+                            "teacher_pay",
                             "course_add", "courses_list", "course_edit",
-                            "enroll_pick", "course_students", "course_payment",
+                            "enroll_pick", "course_students", "course_payment", "course_delete",
                             "teacher_delete", "student_delete", "note_write",
                             "note_today", "note_done", "locker_add", "lockers_list",
                             "locker_items", "locker_delete", "item_add",
@@ -2450,7 +2452,7 @@ def read_course_teacher(raw_id):
 @login_required
 @role_required("admin")
 def course_add():
-    form = {"course_name": "", "course_code": "", "price": "",
+    form = {"course_name": "", "course_code": "", "price": "", "teacher_salary": "",
             "teacher_id": "", "activation_date": ""}
 
     if request.method == "POST":
@@ -2458,12 +2460,14 @@ def course_add():
             "course_name": clean_text(request.form.get("course_name"), 100),
             "course_code": clean_digits(request.form.get("course_code"), 30),
             "price": clean_digits(request.form.get("price"), 25),
+            "teacher_salary": clean_digits(request.form.get("teacher_salary"), 25),
             "teacher_id": clean_digits(request.form.get("teacher_id"), 10),
             "activation_date": clean_digits(request.form.get("activation_date"), 20),
         }
         teacher, teacher_error = read_course_teacher(form["teacher_id"])
         start_date, start_error = read_start_date(form["activation_date"])
         price = parse_money(form["price"])
+        salary = parse_money(form["teacher_salary"])
 
         error = None
         if not form["course_name"]:
@@ -2475,6 +2479,8 @@ def course_add():
             error = f"دوره‌ای با کد {form['course_code']} قبلاً ثبت شده است."
         elif not price:
             error = "قیمت دوره را به عدد وارد کنید (بیشتر از صفر)."
+        elif not salary:
+            error = "حقوق مدرس برای این دوره را به عدد وارد کنید (بیشتر از صفر)."
         elif teacher_error:
             error = teacher_error
         elif start_error:
@@ -2489,6 +2495,7 @@ def course_add():
                 course_name=form["course_name"],
                 course_code=form["course_code"],
                 price=price,
+                teacher_salary=salary,
                 course_instructor_national_id_number=teacher.national_id_number if teacher else None,
                 number_of_students=0,
                 number_of_session=0,  # هنوز جلسه‌ای برگزار نشده
@@ -2534,6 +2541,40 @@ def sync_course_student_count(course_code):
     return count
 
 
+def course_delete_reasons(courses):
+    """دلیل حذف‌نشدنِ هر دوره: {course_id: متن یا None (قابل حذف)}.
+    قاعده: وقتی دوره مدرس دارد، حقوق او باید کاملاً پرداخت شده باشد. دانش‌آموزی که هنوز
+    بدهی دارد و جلسه‌ی تمام‌نشده هم مانع حذف‌اند تا طلب یا برنامه‌ای گم نشود."""
+    paid = teacher_paid_map()
+    now = now_text()
+    owing, unfinished = {}, {}
+    for l in Linking_the_student_to_the_course.query.all():
+        if (l.debt or 0) > 0:
+            owing[l.course_code] = owing.get(l.course_code, 0) + 1
+    for l in Linking_the_course_to_the_class.query.all():
+        if l.class_end_time and l.class_end_time > now:
+            unfinished[l.course_code] = unfinished.get(l.course_code, 0) + 1
+
+    reasons = {}
+    for c in courses:
+        code = c.course_code
+        reason = None
+        if c.course_instructor_national_id_number:
+            if not c.teacher_salary:
+                reason = "حقوق این دوره ثبت نشده است؛ ابتدا حقوق را ثبت و به مدرس پرداخت کنید."
+            else:
+                remaining = c.teacher_salary - paid.get(code, 0)
+                if remaining > 0:
+                    reason = (f"حقوق مدرس هنوز تسویه نشده است (باقی‌مانده: {remaining:,}). "
+                              "بعد از پرداخت کامل حقوق، دوره قابل حذف است.")
+        if reason is None and owing.get(code):
+            reason = f"{owing[code]} دانش‌آموز هنوز بدهی این دوره را نپرداخته‌اند."
+        if reason is None and unfinished.get(code):
+            reason = f"{unfinished[code]} جلسه‌ی تمام‌نشده برای این دوره برنامه‌ریزی شده است؛ ابتدا آن‌ها را لغو کنید."
+        reasons[c.id] = reason
+    return reasons
+
+
 def build_course_rows(courses):
     """ردیف‌های نمایشی دوره‌ها (برای لیست دوره‌ها و انتخاب دوره)"""
     ids = {c.course_instructor_national_id_number for c in courses
@@ -2543,11 +2584,12 @@ def build_course_rows(courses):
         for t in Teachers.query.filter(Teachers.national_id_number.in_(ids)).all():
             names[t.national_id_number] = f"{t.first_name or ''} {t.last_name or ''}".strip()
 
+    delete_reasons = course_delete_reasons(courses)
     rows = []
     for c in courses:
         teacher_name = names.get(c.course_instructor_national_id_number)
         if c.end_of_course:
-            state, label = "ended", "پایان یافته"
+            state, label = "ended", "دوره تمام شده"
         elif c.active and c.course_instructor_national_id_number:
             state, label = "active", "فعال"
         else:
@@ -2556,7 +2598,8 @@ def build_course_rows(courses):
                      "teacher": teacher_name or ("نامشخص" if c.course_instructor_national_id_number else None),
                      "session": session_label(c.number_of_session), "students": c.number_of_students or 0,
                      "price": c.price,
-                     "activation": c.activation_date, "state": state, "label": label})
+                     "activation": c.activation_date, "state": state, "label": label,
+                     "delete_reason": delete_reasons.get(c.id)})
     return rows
 
 
@@ -2573,7 +2616,7 @@ def courses_list():
 @login_required
 @role_required("admin")
 def enroll_pick():
-    """انتخاب دوره برای ثبت دانش‌آموز؛ دوره‌های پایان‌یافته نمایش داده نمی‌شوند"""
+    """انتخاب دوره برای ثبت دانش‌آموز؛ دوره‌های تمام‌شده نمایش داده نمی‌شوند"""
     courses = Courses.query.filter(
         or_(Courses.end_of_course.is_(None), Courses.end_of_course.is_(False))
     ).order_by(Courses.id.desc()).all()
@@ -2631,7 +2674,7 @@ def course_students(course_id):
 
         error = None
         if course.end_of_course:
-            error = "این دوره پایان یافته است و دانش‌آموز جدید نمی‌پذیرد."
+            error = "این دوره تمام شده است و دانش‌آموز جدید نمی‌پذیرد."
         elif not course.course_code:
             error = "برای این دوره کد ثبت نشده است."
         elif not course.price:
@@ -2744,6 +2787,51 @@ def course_payment(link_id):
     return redirect(back)
 
 
+@app.route("/admin/classes/delete-course/<int:course_id>", methods=["GET", "POST"])
+@login_required
+@role_required("admin")
+def course_delete(course_id):
+    """حذف دوره؛ فقط بعد از تسویه‌ی حقوق مدرس (و نبودن بدهی دانش‌آموز و جلسه‌ی تمام‌نشده)."""
+    course = db.session.get(Courses, course_id)
+    if not course:
+        abort(404)
+
+    code = course.course_code
+    blocked = course_delete_reasons([course])[course.id]
+    enrolled = sessions = attendance = 0
+    if code:
+        enrolled = Linking_the_student_to_the_course.query.filter_by(course_code=code).count()
+        sessions = Linking_the_course_to_the_class.query.filter_by(course_code=code).count()
+        attendance = Attendance.query.filter_by(course_code=code).count()
+
+    if request.method == "POST":
+        if blocked:
+            flash(blocked, "error")
+            return redirect(url_for("courses_list"))
+        if code:
+            Linking_the_student_to_the_course.query.filter_by(course_code=code).delete()
+            Linking_the_course_to_the_class.query.filter_by(course_code=code).delete()
+            Attendance.query.filter_by(course_code=code).delete()
+        db.session.delete(course)
+        db.session.commit()
+        flash(f"دوره «{course.course_name}» حذف شد.", "success")
+        return redirect(url_for("courses_list"))
+
+    links = [(label, count) for label, count in (
+        ("دانش‌آموز ثبت‌نام‌شده", enrolled),
+        ("جلسه‌ی برنامه‌ریزی‌شده", sessions),
+        ("حضور و غیاب", attendance),
+    ) if count]
+    return render_template(
+        "confirm_delete.html",
+        crumb="مدیریت کلاس‌ها", kind="دوره", person_name=course.course_name or code or "",
+        links=links, blocked=blocked,
+        extra_note="سابقه‌ی پرداخت‌های دانش‌آموزان و پرداخت حقوق مدرس برای گزارش مالی باقی می‌ماند.",
+        form_action=url_for("course_delete", course_id=course.id),
+        cancel_url=url_for("courses_list"),
+    )
+
+
 @app.route("/admin/classes/edit-course/<int:course_id>", methods=["GET", "POST"])
 @login_required
 @role_required("admin")
@@ -2759,6 +2847,7 @@ def course_edit(course_id):
     form = {"course_name": course.course_name or "",
             "course_code": course.course_code or "",
             "price": str(course.price or ""),
+            "teacher_salary": str(course.teacher_salary or ""),
             "teacher_id": str(current.id) if current else "",
             "activation_date": course.activation_date or ""}
 
@@ -2766,13 +2855,16 @@ def course_edit(course_id):
         form.update({
             "course_name": clean_text(request.form.get("course_name"), 100),
             "price": clean_digits(request.form.get("price"), 25),
+            "teacher_salary": clean_digits(request.form.get("teacher_salary"), 25),
             "teacher_id": clean_digits(request.form.get("teacher_id"), 10),
             "activation_date": clean_digits(request.form.get("activation_date"), 20),
         })
         teacher, teacher_error = read_course_teacher(form["teacher_id"])
         start_date, start_error = read_start_date(form["activation_date"])
         price = parse_money(form["price"])
+        salary = parse_money(form["teacher_salary"])
         min_price = max_paid_in_course(course)
+        salary_paid = teacher_paid_map().get(course.course_code, 0)
 
         error = None
         if not form["course_name"]:
@@ -2782,6 +2874,11 @@ def course_edit(course_id):
         elif price < min_price:
             error = (f"قیمت نمی‌تواند کمتر از مبلغی باشد که یک دانش‌آموز تا الان "
                      f"پرداخته است ({min_price:,}).")
+        elif not salary:
+            error = "حقوق مدرس برای این دوره را به عدد وارد کنید (بیشتر از صفر)."
+        elif salary < salary_paid:
+            error = (f"حقوق نمی‌تواند کمتر از مبلغی باشد که تا الان به مدرس پرداخت شده "
+                     f"({salary_paid:,}).")
         elif teacher_error:
             error = teacher_error
         elif start_error:
@@ -2796,6 +2893,7 @@ def course_edit(course_id):
 
             course.course_name = form["course_name"]
             course.price = price
+            course.teacher_salary = salary
             recompute_course_debts(course)  # با تغییر قیمت، بدهی دانش‌آموزان دوباره حساب شود
             course.course_instructor_national_id_number = (
                 teacher.national_id_number if teacher else None)
@@ -2933,7 +3031,7 @@ def schedule_add():
         if not course:
             error = "دوره را انتخاب کنید."
         elif course.end_of_course:
-            error = "این دوره پایان یافته است."
+            error = "این دوره تمام شده است؛ جلسه‌ی بعدی برگزار نمی‌شود."
         elif not course.active or not course.course_instructor_national_id_number:
             error = "این دوره فعال نیست؛ تا وقتی مدرس در آن ثبت نشود برایش کلاس برنامه‌ریزی نمی‌شود."
         elif (course.number_of_session or 0) + pending_sessions(course.course_code) >= COURSE_TOTAL_SESSIONS:
@@ -3041,6 +3139,216 @@ def schedule_cancel(link_id):
     elif state == "ended":
         context.update(extra_note="شماره‌ی جلسه‌ی دوره تغییری نمی‌کند؛ فقط این ردیف از برنامه حذف می‌شود.")
     return render_template("confirm_delete.html", **context)
+
+
+# =========================================================
+# FINANCE (امور مالی)
+# دریافتی‌ها: بیعانه و تسویه‌ی دانش‌آموزان (Payments) و اجاره‌ی کلاس‌ها
+# پرداختی‌ها: حقوق دبیران (TeacherPayments)؛ هر دوره یک حقوق دارد (Courses.teacher_salary)
+# =========================================================
+
+def student_name_map(national_ids):
+    names = {}
+    ids = {i for i in national_ids if i}
+    if ids:
+        for st in Students.query.filter(Students.national_id_number.in_(ids)).all():
+            names[st.national_id_number] = f"{st.first_name or ''} {st.last_name or ''}".strip()
+    return names
+
+
+def teacher_name_map(national_ids):
+    names = {}
+    ids = {i for i in national_ids if i}
+    if ids:
+        for t in Teachers.query.filter(Teachers.national_id_number.in_(ids)).all():
+            names[t.national_id_number] = f"{t.first_name or ''} {t.last_name or ''}".strip()
+    return names
+
+
+def course_name_map():
+    return {c.course_code: c for c in Courses.query.all()}
+
+
+def teacher_paid_map():
+    """مجموع حقوقی که تا الان برای هر دوره به مدرس پرداخت شده: {کد دوره: مبلغ}"""
+    paid = {}
+    for p in TeacherPayments.query.all():
+        paid[p.course_code] = paid.get(p.course_code, 0) + (p.amount or 0)
+    return paid
+
+
+@app.route("/admin/finance/today-turnover")
+@login_required
+@role_required("admin")
+def finance_today():
+    """گردش مالی یک روز (پیش‌فرض امروز): دریافتی‌ها (بیعانه، تسویه، اجاره‌ی کلاس) و
+    پرداختی‌ها (حقوق دبیران) و مبلغ خالص."""
+    today = format_jalali(*today_jalali())
+    raw = clean_digits(request.args.get("date"), 20)
+    day = today
+    if raw:
+        parsed = parse_jalali_date(raw)
+        if parsed:
+            day = parsed
+        else:
+            flash("تاریخ نامعتبر است؛ امروز نمایش داده شد. تاریخ شمسی را مثل ۱۴۰۵/۰۷/۲۰ وارد کنید.", "error")
+
+    payments = Payments.query.filter_by(payment_date=day).order_by(Payments.id).all()
+    rentals = Renting_out_a_class.query.filter_by(registration_date=day).order_by(
+        Renting_out_a_class.id).all()
+    salaries = TeacherPayments.query.filter_by(payment_date=day).order_by(TeacherPayments.id).all()
+
+    students = student_name_map(p.student_national_id_number for p in payments)
+    teachers = teacher_name_map([r.teacher_national_id_number for r in rentals]
+                                + [s.teacher_national_id_number for s in salaries])
+    courses = course_name_map()
+
+    entries = []
+    for p in payments:
+        course = courses.get(p.course_code)
+        entries.append({"kind": p.kind or "پرداخت", "out": False,
+                        "who": students.get(p.student_national_id_number, p.student_national_id_number or "—"),
+                        "what": course.course_name if course and course.course_name else (p.course_code or "—"),
+                        "amount": p.amount or 0})
+    for r in rentals:
+        entries.append({"kind": "اجاره کلاس", "out": False,
+                        "who": teachers.get(r.teacher_national_id_number, r.teacher_national_id_number or "—"),
+                        "what": f"کلاس {r.class_number} ({(r.class_start_time or '')[11:16]} تا {(r.class_end_time or '')[11:16]})",
+                        "amount": r.amount or 0})
+    for sal in salaries:
+        course = courses.get(sal.course_code)
+        entries.append({"kind": "حقوق دبیر", "out": True,
+                        "who": teachers.get(sal.teacher_national_id_number, sal.teacher_national_id_number or "—"),
+                        "what": course.course_name if course and course.course_name else (sal.course_code or "—"),
+                        "amount": sal.amount or 0})
+
+    totals = {}
+    for e in entries:
+        totals[e["kind"]] = totals.get(e["kind"], 0) + e["amount"]
+    income = sum(e["amount"] for e in entries if not e["out"])
+    outgo = totals.get("حقوق دبیر", 0)
+    return render_template("finance_today.html", entries=entries, day=day, today=today,
+                           deposits=totals.get("بیعانه", 0), settlements=totals.get("تسویه", 0),
+                           rents=totals.get("اجاره کلاس", 0), income=income,
+                           salaries=outgo, net=income - outgo)
+
+
+@app.route("/admin/finance/debts")
+@login_required
+@role_required("admin")
+def finance_debts():
+    """بدهی‌های آموزشگاه: حقوق دبیران. هر دوره یک حقوق دارد و مدرس دوره تا پرداخت کامل
+    طلبکار است؛ حقوق را می‌شود در چند قسط پرداخت کرد."""
+    courses = [c for c in Courses.query.all() if c.course_instructor_national_id_number]
+    paid_map = teacher_paid_map()
+    teachers = teacher_name_map(c.course_instructor_national_id_number for c in courses)
+
+    rows = []
+    for c in courses:
+        salary = c.teacher_salary or None
+        paid = paid_map.get(c.course_code, 0)
+        remaining = max(salary - paid, 0) if salary else None
+        rows.append({"id": c.id, "code": c.course_code, "name": c.course_name,
+                     "teacher": teachers.get(c.course_instructor_national_id_number, "—"),
+                     "salary": salary, "paid": paid, "remaining": remaining,
+                     "ended": bool(c.end_of_course)})
+    # ابتدا دوره‌هایی که حقوق باقی‌مانده دارند (بیشتر به کمتر)، بعد حقوق‌ثبت‌نشده‌ها، بعد تسویه‌شده‌ها
+    rows.sort(key=lambda r: (0 if r["remaining"] else (1 if r["remaining"] is None else 2),
+                             -(r["remaining"] or 0), -r["id"]))
+    return render_template(
+        "finance_debts.html", rows=rows,
+        total_salary=sum(r["salary"] or 0 for r in rows),
+        total_paid=sum(r["paid"] for r in rows if r["salary"]),
+        total_remaining=sum(r["remaining"] or 0 for r in rows))
+
+
+@app.route("/admin/finance/pay-teacher/<int:course_id>", methods=["POST"])
+@login_required
+@role_required("admin")
+def teacher_pay(course_id):
+    """پرداخت بخشی از حقوق مدرس یک دوره (هر مبلغی تا سقف حقوق باقی‌مانده)"""
+    course = db.session.get(Courses, course_id)
+    if not course:
+        abort(404)
+
+    amount = parse_money(request.form.get("amount"))
+    teacher_id = course.course_instructor_national_id_number
+    salary = course.teacher_salary or 0
+    remaining = salary - teacher_paid_map().get(course.course_code, 0)
+
+    if not teacher_id:
+        flash("برای این دوره مدرسی ثبت نشده است.", "error")
+    elif not salary:
+        flash("حقوق این دوره ثبت نشده است؛ ابتدا از «ویرایش دوره» حقوق را ثبت کنید.", "error")
+    elif remaining <= 0:
+        flash("حقوق این دوره کاملاً پرداخت شده است.", "error")
+    elif amount is None or amount < 1:
+        flash("مبلغ پرداخت را به عدد و بیشتر از صفر وارد کنید.", "error")
+    elif amount > remaining:
+        flash(f"مبلغ پرداخت نمی‌تواند از حقوق باقی‌مانده ({remaining:,}) بیشتر باشد.", "error")
+    else:
+        db.session.add(TeacherPayments(
+            teacher_national_id_number=teacher_id, course_code=course.course_code,
+            amount=amount, payment_date=format_jalali(*today_jalali())))
+        db.session.commit()
+        left = remaining - amount
+        if left == 0:
+            flash(f"{amount:,} پرداخت شد و حقوق دوره «{course.course_name}» کاملاً تسویه شد.", "success")
+        else:
+            flash(f"{amount:,} از حقوق دوره «{course.course_name}» پرداخت شد؛ باقی‌مانده: {left:,}.", "success")
+    return redirect(url_for("finance_debts"))
+
+
+@app.route("/admin/finance/receivables")
+@login_required
+@role_required("admin")
+def finance_receivables():
+    """طلب‌های آموزشگاه: شهریه‌ای که دانش‌آموزان هنوز نپرداخته‌اند؛ هم به تفکیک دوره
+    و هم دانش‌آموز به دانش‌آموز."""
+    all_links = Linking_the_student_to_the_course.query.all()
+    links_by_course = {}
+    for l in all_links:
+        links_by_course.setdefault(l.course_code, []).append(l)
+    courses = course_name_map()
+
+    rows = []
+    for course in sorted(courses.values(), key=lambda c: c.id, reverse=True):
+        links = links_by_course.get(course.course_code, [])
+        if not links:
+            continue
+        outstanding = sum(l.debt or 0 for l in links)
+        if course.price:
+            expected = course.price * len(links)
+            received = max(expected - outstanding, 0)
+            percent = round(received * 100 / expected) if expected else 100
+        else:
+            expected = received = percent = None
+        rows.append({"id": course.id, "code": course.course_code, "name": course.course_name,
+                     "price": course.price, "students": len(links), "expected": expected,
+                     "received": received, "outstanding": outstanding, "percent": percent,
+                     "ended": bool(course.end_of_course)})
+
+    debt_links = [l for l in all_links if (l.debt or 0) > 0]
+    students = student_name_map(l.student_national_id_number for l in debt_links)
+    debt_rows = []
+    for l in debt_links:
+        course = courses.get(l.course_code)
+        price = course.price if course and course.price else None
+        debt_rows.append({"name": students.get(l.student_national_id_number, "—"),
+                          "national_id": l.student_national_id_number,
+                          "course": course.course_name if course and course.course_name else l.course_code,
+                          "course_id": course.id if course else None,
+                          "price": price,
+                          "paid": (price - l.debt) if price else (l.deposit or 0),
+                          "debt": l.debt})
+    debt_rows.sort(key=lambda r: r["debt"], reverse=True)
+
+    return render_template(
+        "finance_receivables.html", rows=rows, debt_rows=debt_rows,
+        debtors=len({r["national_id"] for r in debt_rows}),
+        total_expected=sum(r["expected"] or 0 for r in rows),
+        total_received=sum(r["received"] or 0 for r in rows),
+        total_outstanding=sum(r["outstanding"] for r in rows))
 
 
 @app.route("/panel/profile")

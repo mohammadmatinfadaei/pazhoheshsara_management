@@ -341,6 +341,9 @@ class Courses(db.Model):
     # قیمت دوره برای هر دانش‌آموز (عدد صحیح)
     price = db.Column(db.Integer)
 
+    # حقوق مدرس برای کل این دوره (هر دوره یک حقوق دارد)
+    teacher_salary = db.Column(db.Integer)
+
     active = db.Column(
         db.Boolean,
         default=False
@@ -363,7 +366,8 @@ class Courses(db.Model):
             f"{self.number_of_session},"
             f"{self.activation_date},"
             f"{self.course_code},"
-            f"{self.price}"
+            f"{self.price},"
+            f"{self.teacher_salary}"
             f")"
         )
 
@@ -514,6 +518,40 @@ class Payments(db.Model):
             f"{self.course_code},"
             f"{self.amount},"
             f"{self.kind},"
+            f"{self.payment_date}"
+            f")"
+        )
+
+
+# =========================================================
+# TEACHER PAYMENTS (پرداخت حقوق دبیران)
+# هر پرداخت به مدرس یک ردیف است؛ حقوق هر دوره را می‌شود در چند قسط داد.
+# جدول جدید است و با اجرای برنامه خودکار ساخته می‌شود.
+# =========================================================
+
+class TeacherPayments(db.Model):
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    teacher_national_id_number = db.Column(db.Text)
+
+    course_code = db.Column(db.Text)
+
+    # مبلغ پرداخت‌شده
+    amount = db.Column(db.Integer)
+
+    # تاریخ پرداخت؛ شمسی و به شکل 1405/07/18
+    payment_date = db.Column(db.Text)
+
+
+    def __repr__(self):
+
+        return (
+            f"TeacherPayments("
+            f"{self.id},"
+            f"{self.teacher_national_id_number},"
+            f"{self.course_code},"
+            f"{self.amount},"
             f"{self.payment_date}"
             f")"
         )

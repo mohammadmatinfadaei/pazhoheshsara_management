@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}بدهی‌ها (حقوق دبیران) | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">امور مالی</p>
+    <h1>بدهی‌های آموزشگاه: حقوق دبیران</h1>
+    <p class="lead">هر دوره یک حقوق دارد و مدرس دوره تا پرداخت کامل آن طلبکار است. حقوق را می‌توانید در چند قسط پرداخت کنید؛ لازم نیست یک‌جا باشد.</p>
+
+    <div class="stats">
+        <div class="stat"><span>مجموع حقوق دوره‌ها</span><strong>{{ total_salary|money }}</strong></div>
+        <div class="stat"><span>پرداخت‌شده</span><strong>{{ total_paid|money }}</strong></div>
+        <div class="stat total"><span>بدهی باقی‌مانده</span><strong class="{% if total_remaining %}text-danger{% endif %}">{{ total_remaining|money }}</strong></div>
+    </div>
+
+    <div class="table-wrap">
+        <table class="table wrap">
+            <thead>
+                <tr>
+                    <th scope="col">دوره</th>
+                    <th scope="col">مدرس</th>
+                    <th scope="col">حقوق دوره</th>
+                    <th scope="col">پرداخت‌شده</th>
+                    <th scope="col">باقی‌مانده</th>
+                    <th scope="col">پرداخت حقوق</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ r.name }} <small class="loan-detail" dir="ltr">{{ r.code }}{% if r.ended %} — دوره تمام شده{% endif %}</small></td>
+                    <td>{{ r.teacher }}</td>
+                    <td>{% if r.salary %}{{ r.salary|money }}{% else %}<span class="text-danger">ثبت نشده</span>{% endif %}</td>
+                    <td>{% if r.salary %}{{ r.paid|money }}{% else %}—{% endif %}</td>
+                    <td>{% if r.remaining is none %}—{% elif r.remaining %}<strong class="text-danger">{{ r.remaining|money }}</strong>{% else %}0{% endif %}</td>
+                    <td>
+                        {% if r.remaining is none %}
+                            <a class="btn ghost small" href="{{ url_for('course_edit', course_id=r.id) }}">ثبت حقوق دوره</a>
+                        {% elif r.remaining %}
+                            <form method="post" action="{{ url_for('teacher_pay', course_id=r.id) }}" class="pay-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <label class="sr-only" for="pay-{{ r.id }}">مبلغ پرداخت</label>
+                                <input id="pay-{{ r.id }}" name="amount" type="text" inputmode="numeric" dir="ltr"
+                                       placeholder="حداکثر {{ r.remaining|money }}" required>
+                                <button class="btn primary small" type="submit">پرداخت</button>
+                            </form>
+                        {% else %}
+                            <span class="badge-ok">تسویه شده</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty">هنوز دوره‌ای با مدرس ثبت‌شده وجود ندارد.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

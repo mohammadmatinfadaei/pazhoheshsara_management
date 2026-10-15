@@ -37,6 +37,13 @@
             </div>
 
             <div class="field">
+                <label for="teacher_salary">حقوق مدرس برای این دوره <span class="req" aria-hidden="true">*</span></label>
+                <input id="teacher_salary" name="teacher_salary" type="text" inputmode="numeric" required dir="ltr"
+                       value="{{ form.get('teacher_salary') or '' }}">
+                <small>حقوق کل دوره، به عدد؛ در «بدهی‌ها»ی امور مالی در چند قسط پرداخت می‌شود.</small>
+            </div>
+
+            <div class="field">
                 <label for="activation_date">تاریخ شروع (اختیاری)</label>
                 <input id="activation_date" name="activation_date" type="text" dir="ltr" maxlength="10"
                        placeholder="1405/08/01" value="{{ form.get('activation_date') or '' }}">

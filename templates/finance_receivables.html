@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}طلب‌های آموزشگاه | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">امور مالی</p>
+    <h1>طلب‌های آموزشگاه</h1>
+    <p class="lead">شهریه‌ای که دانش‌آموزان هنوز نپرداخته‌اند: اول به تفکیک دوره (درآمد مورد انتظار = قیمت × تعداد دانش‌آموزان) و بعد دانش‌آموز به دانش‌آموز.</p>
+
+    <div class="stats">
+        <div class="stat"><span>درآمد مورد انتظار</span><strong>{{ total_expected|money }}</strong></div>
+        <div class="stat"><span>دریافت‌شده</span><strong>{{ total_received|money }}</strong></div>
+        <div class="stat total"><span>طلب باقی‌مانده</span><strong class="{% if total_outstanding %}text-danger{% endif %}">{{ total_outstanding|money }}</strong></div>
+    </div>
+
+    <div class="table-wrap">
+        <table class="table wrap">
+            <thead>
+                <tr>
+                    <th scope="col">کد دوره</th>
+                    <th scope="col">نام دوره</th>
+                    <th scope="col">قیمت</th>
+                    <th scope="col">تعداد دانش‌آموزان</th>
+                    <th scope="col">مورد انتظار</th>
+                    <th scope="col">دریافت‌شده</th>
+                    <th scope="col">باقی‌مانده</th>
+                    <th scope="col">درصد دریافت</th>
+                    <th scope="col">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td dir="ltr">{{ r.code or '—' }}</td>
+                    <td>{{ r.name }}{% if r.ended %} <small class="loan-detail">دوره تمام شده</small>{% endif %}</td>
+                    <td>{% if r.price %}{{ r.price|money }}{% else %}<span class="text-danger">ثبت نشده</span>{% endif %}</td>
+                    <td>{{ r.students }}</td>
+                    <td>{% if r.expected is not none %}{{ r.expected|money }}{% else %}—{% endif %}</td>
+                    <td>{% if r.received is not none %}{{ r.received|money }}{% else %}—{% endif %}</td>
+                    <td>{% if r.outstanding %}<strong class="text-danger">{{ r.outstanding|money }}</strong>{% else %}0{% endif %}</td>
+                    <td>
+                        {% if r.percent is none %}—
+                        {% else %}
+                        <progress class="meter" value="{{ r.percent }}" max="100" aria-label="{{ r.percent }} درصد دریافت شده">{{ r.percent }}%</progress>
+                        <small class="loan-detail">{{ r.percent }}٪</small>
+                        {% endif %}
+                    </td>
+                    <td><a class="btn ghost small" href="{{ url_for('course_students', course_id=r.id) }}">دانش‌آموزان</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" class="empty">هنوز دانش‌آموزی در دوره‌ها ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="section-title">بدهی دانش‌آموزان ({{ debtors }} نفر)</h2>
+    <div class="table-wrap">
+        <table class="table wrap">
+            <thead>
+                <tr>
+                    <th scope="col">دانش‌آموز</th>
+                    <th scope="col">کد ملی</th>
+                    <th scope="col">دوره</th>
+                    <th scope="col">قیمت دوره</th>
+                    <th scope="col">پرداخت‌شده</th>
+                    <th scope="col">بدهی باقی‌مانده</th>
+                    <th scope="col">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in debt_rows %}
+                <tr>
+                    <td>{{ r.name }}</td>
+                    <td dir="ltr">{{ r.national_id or '—' }}</td>
+                    <td>{{ r.course }}</td>
+                    <td>{% if r.price %}{{ r.price|money }}{% else %}—{% endif %}</td>
+                    <td>{{ r.paid|money }}</td>
+                    <td><strong class="text-danger">{{ r.debt|money }}</strong></td>
+                    <td>
+                        {% if r.course_id %}
+                        <a class="btn ghost small" href="{{ url_for('course_students', course_id=r.course_id) }}">ثبت پرداخت</a>
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="empty">هیچ دانش‌آموزی بدهی ندارد.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

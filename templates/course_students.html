@@ -14,7 +14,7 @@
     <p class="lead">مجموع بیعانه‌ها: {{ total_deposit|money }} | مجموع بدهی‌های باقی‌مانده: <strong class="{% if total_debt %}text-danger{% endif %}">{{ total_debt|money }}</strong></p>
 
     {% if course.end_of_course %}
-        <div class="flash error" role="alert">این دوره پایان یافته است و دانش‌آموز جدید نمی‌پذیرد.</div>
+        <div class="flash error" role="alert">این دوره تمام شده است و دانش‌آموز جدید نمی‌پذیرد.</div>
     {% elif not course.price %}
         <div class="flash error" role="alert">قیمت این دوره ثبت نشده است. ابتدا <a href="{{ url_for('course_edit', course_id=course.id) }}">قیمت دوره را ثبت کنید</a>، بعد دانش‌آموز اضافه کنید.</div>
     {% else %}
