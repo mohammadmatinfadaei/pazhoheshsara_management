@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}حضور و غیاب {{ course.course_name }} | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">کلاس‌ها</p>
+    <h1>حضور و غیاب: {{ course.course_name }}</h1>
+    <p class="lead">
+        جلسه {{ link.session_number }} از ۱۰ | کلاس <span dir="ltr">{{ link.class_number }}</span> |
+        <span dir="ltr">{{ link.class_start_time[11:16] }} تا {{ link.class_end_time[11:16] }}</span>
+        {% if recorded %}| حضور و غیاب این جلسه قبلاً ثبت شده؛ ذخیره‌ی دوباره آن را به‌روز می‌کند.{% endif %}
+    </p>
+
+    <form method="post" action="{{ url_for('attendance_take', link_id=link.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">نام و نام خانوادگی</th>
+                        <th scope="col">کد ملی</th>
+                        <th scope="col">
+                            <label class="check-inline"><input type="checkbox" id="select-all"> حاضر (انتخاب همه)</label>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rows %}
+                    <tr>
+                        <td>{{ r.name }}</td>
+                        <td dir="ltr">{{ r.national_id or '—' }}</td>
+                        <td>
+                            <label class="check-inline">
+                                <input type="checkbox" class="present-box" name="present" value="{{ r.id }}" {% if r.present %}checked{% endif %}>
+                                حاضر
+                            </label>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" class="empty">هنوز دانش‌آموزی در این دوره ثبت نشده است.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="actions">
+            {% if rows %}<button class="btn primary" type="submit">ذخیره‌ی حضور و غیاب</button>{% endif %}
+            <a class="btn ghost" href="{{ url_for('dashboard') }}">بازگشت به کلاس‌های امروز</a>
+        </div>
+    </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/script/attendance.js"></script>
+{% endblock %}

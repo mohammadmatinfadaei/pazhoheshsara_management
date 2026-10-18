@@ -305,7 +305,8 @@ def security_headers(resp):
                             "rent_add", "rentals_list", "rental_cancel",
                             "schedule_add", "schedules_list", "schedule_cancel",
                             "finance_today", "finance_debts", "finance_receivables",
-                            "teacher_pay",
+                            "teacher_pay", "teacher_today", "teacher_courses",
+                            "attendance_take",
                             "course_add", "courses_list", "course_edit",
                             "enroll_pick", "course_students", "course_payment", "course_delete",
                             "teacher_delete", "student_delete", "note_write",
@@ -394,6 +395,10 @@ def login():
                 name = f"{user.first_name or ''} {user.last_name or ''}".strip()
 
         if user and verify_password(user.password, password):
+            if role == "teacher" and user.type == "متفرقه":
+                # دبیران متفرقه اصلاً وارد سایت نمی‌شوند
+                flash("دبیران متفرقه امکان ورود به سامانه را ندارند.", "error")
+                return render_template("login.html", roles=ROLES, selected_role=selected_role), 403
             session.clear()
             session.permanent = True
             session["user_id"] = user.id
@@ -489,7 +494,15 @@ def dashboard():
     if role not in ("admin", "teacher", "student_parent"):
         session.clear()
         return redirect(url_for("login"))
-    return render_template("dashboard.html", role=role)
+    rows, today = [], None
+    if role == "teacher":
+        teacher = current_teacher()
+        if not teacher:  # مثلاً بعد از ورود، نوعش به «متفرقه» تغییر کرده است
+            session.clear()
+            flash("دبیران متفرقه به سامانه دسترسی ندارند.", "error")
+            return redirect(url_for("login"))
+        rows, today = teacher_today_rows(teacher), format_jalali(*today_jalali())
+    return render_template("dashboard.html", role=role, rows=rows, today=today)
 
 
 @app.route("/admin/<section>/<item>")
@@ -2206,10 +2219,15 @@ def pending_bookings(class_number):
 
 
 def booking_conflicts(class_number, start, end):
-    """رزروهای این کلاس که با بازه‌ی جدید همپوشانی دارند (خالی = تداخل ندارد).
+    """رزروهای تمام‌نشده‌ی این کلاس که با بازه‌ی جدید همپوشانی دارند (خالی = تداخل ندارد).
+    فقط رزروهایی که هنوز تمام نشده‌اند (در حال برگزاری یا در پیش‌رو) تداخل حساب می‌شوند؛
+    رزرو تمام‌شده یا لغوشده (که پایانش به لحظه‌ی لغو رسیده) مانع نیست، پس می‌شود همان دوره را
+    دوباره در همان کلاس و همان ساعت ثبت کرد.
     پایان هر بازه شامل نمی‌شود: ۱۶ تا ۱۸ و ۱۸ تا ۱۹ با هم تداخل ندارند."""
+    now = now_text()
     return sorted((b for b in all_bookings()
-                   if b["class"] == class_number and start < b["end"] and b["start"] < end),
+                   if b["class"] == class_number and b["end"] > now
+                   and start < b["end"] and b["start"] < end),
                   key=lambda b: b["start"])
 
 
@@ -2984,12 +3002,14 @@ def schedulable_courses():
 
 
 def course_time_conflicts(course, start, end):
-    """تداخل با جلسه‌های دیگرِ همین دوره، یا دوره‌های دیگری که مدرس یکسان دارند.
+    """تداخل با جلسه‌های تمام‌نشده‌ی دیگرِ همین دوره، یا دوره‌های دیگری که مدرس یکسان دارند.
     خروجی: فهرست متن‌های تداخل"""
     courses = {c.course_code: c for c in Courses.query.all()}
+    now = now_text()
     messages = []
     for link in Linking_the_course_to_the_class.query.all():
-        if not (link.class_start_time and link.class_end_time
+        # جلسه‌ی تمام‌شده یا لغوشده (پایانش گذشته) تداخل حساب نمی‌شود
+        if not (link.class_start_time and link.class_end_time and link.class_end_time > now
                 and start < link.class_end_time and link.class_start_time < end):
             continue
         when = (f"{link.class_start_time[:10]} از {link.class_start_time[11:16]} "
@@ -3349,6 +3369,182 @@ def finance_receivables():
         total_expected=sum(r["expected"] or 0 for r in rows),
         total_received=sum(r["received"] or 0 for r in rows),
         total_outstanding=sum(r["outstanding"] for r in rows))
+
+
+# =========================================================
+# TEACHER PANEL (کلاس‌های امروز و حضور و غیاب دبیر)
+# دبیر متفرقه اصلاً وارد سایت نمی‌شود؛ فقط دبیران موظف و غیر موظف.
+# =========================================================
+
+def current_teacher():
+    """دبیر واردشده؛ اگر دبیر نباشد یا متفرقه باشد None"""
+    if session.get("role") != "teacher":
+        return None
+    teacher = db.session.get(Teachers, session.get("user_id"))
+    if not teacher or teacher.type == "متفرقه":
+        return None
+    return teacher
+
+
+def teacher_today_rows(teacher):
+    """جلسه‌های امروزِ دوره‌های این دبیر (به ترتیب ساعت) همراه وضعیت حضور و غیاب"""
+    national_id = teacher.national_id_number
+    if not national_id:
+        return []
+    now = now_text()
+    today = format_jalali(*today_jalali())
+    courses = {c.course_code: c for c in
+               Courses.query.filter_by(course_instructor_national_id_number=national_id).all()}
+    links = sorted((l for l in Linking_the_course_to_the_class.query.all()
+                    if l.course_code in courses and l.class_start_time
+                    and l.class_start_time[:10] == today),
+                   key=lambda l: l.class_start_time)
+    if not links:
+        return []
+
+    attendance = {}
+    for a in Attendance.query.all():
+        if a.course_code in courses:
+            attendance.setdefault((a.course_code, a.number_of_session), []).append(a)
+    enrolled = {}
+    for l in Linking_the_student_to_the_course.query.all():
+        enrolled[l.course_code] = enrolled.get(l.course_code, 0) + 1
+
+    labels = {"upcoming": "در پیش‌رو", "running": "در حال برگزاری", "ended": "تمام شده"}
+    rows = []
+    for l in links:
+        course = courses[l.course_code]
+        state = rental_state(l.class_start_time, l.class_end_time, now)
+        records = attendance.get((l.course_code, l.session_number), []) if l.session_number else []
+        rows.append({
+            "id": l.id, "course": course.course_name, "code": l.course_code,
+            "class_number": l.class_number or "—",
+            "from": l.class_start_time[11:16], "to": (l.class_end_time or "")[11:16],
+            "session": f"جلسه {l.session_number}" if l.session_number else "جلسه‌ی بعدی",
+            "state": state, "label": labels[state],
+            "can_take": state == "running" and bool(l.session_number),
+            "students": enrolled.get(l.course_code, 0),
+            "recorded": bool(records),
+            "present": sum(1 for a in records if a.presence),
+        })
+    return rows
+
+
+@app.route("/panel/classes/today")
+@login_required
+@role_required("teacher", "student_parent")
+def teacher_today():
+    """کلاس‌های امروز دبیر (برای دانش‌آموز فعلاً صفحه‌ی نگه‌دارنده)"""
+    if session.get("role") != "teacher":
+        return panel_page("classes", "today")
+    teacher = current_teacher()
+    if not teacher:
+        session.clear()
+        flash("دبیران متفرقه به سامانه دسترسی ندارند.", "error")
+        return redirect(url_for("login"))
+    return render_template("teacher_today.html", rows=teacher_today_rows(teacher),
+                           today=format_jalali(*today_jalali()))
+
+
+@app.route("/panel/classes/all")
+@login_required
+@role_required("teacher", "student_parent")
+def teacher_courses():
+    """کل دوره‌های دبیر (فعال و تمام‌شده) با پیشرفت و جلسه‌ی بعدی (برای دانش‌آموز فعلاً نگه‌دارنده)"""
+    if session.get("role") != "teacher":
+        return panel_page("classes", "all")
+    teacher = current_teacher()
+    if not teacher:
+        session.clear()
+        flash("دبیران متفرقه به سامانه دسترسی ندارند.", "error")
+        return redirect(url_for("login"))
+
+    national_id = teacher.national_id_number
+    courses = (Courses.query.filter_by(course_instructor_national_id_number=national_id)
+               .order_by(Courses.id.desc()).all()) if national_id else []
+    codes = {c.course_code for c in courses}
+
+    # شماره‌ی جلسه‌هایی که برایشان حضور و غیاب ثبت شده: {کد دوره: {شماره‌ی جلسه}}
+    recorded = {}
+    for a in Attendance.query.all():
+        if a.course_code in codes and a.number_of_session:
+            recorded.setdefault(a.course_code, set()).add(a.number_of_session)
+
+    now = now_text()
+    next_session = {}
+    for l in sorted(Linking_the_course_to_the_class.query.all(), key=lambda l: l.class_start_time or ""):
+        if (l.course_code in codes and l.class_start_time and l.class_end_time
+                and l.class_end_time > now and l.course_code not in next_session):
+            next_session[l.course_code] = (f"{l.class_start_time[:10]} | {l.class_start_time[11:16]} تا "
+                                           f"{l.class_end_time[11:16]} | کلاس {l.class_number}")
+
+    rows = []
+    for c in courses:
+        rows.append({"code": c.course_code, "name": c.course_name,
+                     "state": "ended" if c.end_of_course else "active",
+                     "session": session_label(c.number_of_session),
+                     "students": c.number_of_students or 0,
+                     "start": c.activation_date,
+                     "recorded": len(recorded.get(c.course_code, ())),
+                     "held": c.number_of_session or 0,
+                     "next": next_session.get(c.course_code)})
+    return render_template("teacher_courses.html", rows=rows,
+                           total=len(rows), active=sum(1 for r in rows if r["state"] == "active"))
+
+
+@app.route("/panel/attendance/<int:link_id>", methods=["GET", "POST"])
+@login_required
+@role_required("teacher")
+def attendance_take(link_id):
+    """ثبت حضور و غیاب یک جلسه؛ فقط برای جلسه‌ی در حال برگزاریِ دوره‌ی خودِ دبیر."""
+    teacher = current_teacher()
+    if not teacher:
+        abort(403)
+    link = db.session.get(Linking_the_course_to_the_class, link_id)
+    if not link:
+        abort(404)
+    course = Courses.query.filter_by(course_code=link.course_code).first()
+    if (not course or not teacher.national_id_number
+            or course.course_instructor_national_id_number != teacher.national_id_number):
+        abort(403)
+
+    if (rental_state(link.class_start_time, link.class_end_time, now_text()) != "running"
+            or not link.session_number):
+        flash("حضور و غیاب فقط برای کلاسی که در حال برگزاری است ثبت می‌شود.", "error")
+        return redirect(url_for("dashboard"))
+
+    enrolled = Linking_the_student_to_the_course.query.filter_by(
+        course_code=course.course_code).order_by(Linking_the_student_to_the_course.id).all()
+    names = student_name_map(l.student_national_id_number for l in enrolled)
+    existing = {a.student_national_id_number: a for a in Attendance.query.filter_by(
+        course_code=course.course_code, number_of_session=link.session_number).all()}
+
+    if request.method == "POST":
+        present_ids = {int(v) for v in request.form.getlist("present") if v.isascii() and v.isdigit()}
+        present_count = 0
+        for e in enrolled:
+            is_present = e.id in present_ids
+            present_count += is_present
+            record = existing.get(e.student_national_id_number)
+            if record:
+                record.presence = is_present
+            else:
+                db.session.add(Attendance(student_national_id_number=e.student_national_id_number,
+                                          course_code=course.course_code,
+                                          number_of_session=link.session_number,
+                                          presence=is_present))
+        db.session.commit()
+        flash(f"حضور و غیاب جلسه {link.session_number} دوره «{course.course_name}» ذخیره شد: "
+              f"{present_count} حاضر از {len(enrolled)} دانش‌آموز.", "success")
+        return redirect(url_for("attendance_take", link_id=link.id))
+
+    rows = [{"id": e.id, "name": names.get(e.student_national_id_number, "—"),
+             "national_id": e.student_national_id_number,
+             "present": bool(existing.get(e.student_national_id_number)
+                             and existing[e.student_national_id_number].presence)}
+            for e in enrolled]
+    return render_template("attendance.html", course=course, link=link, rows=rows,
+                           recorded=bool(existing))
 
 
 @app.route("/panel/profile")

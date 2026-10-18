@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}کلاس‌های امروز | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">کلاس‌ها</p>
+    <h1>کلاس‌های امروز</h1>
+    <p class="lead">تاریخ امروز: <span dir="ltr">{{ today }}</span>. حضور و غیاب را فقط وقتی کلاس فعال (در حال برگزاری) است می‌توانید ثبت کنید.</p>
+    {% include "_teacher_today.html" %}
+</section>
+{% endblock %}
