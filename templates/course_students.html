@@ -7,11 +7,11 @@
     <h1>دانش‌آموزان دوره: {{ course.course_name }}</h1>
     <p class="lead">
         کد دوره: <span dir="ltr">{{ course.course_code or '—' }}</span> |
-        قیمت: {% if course.price %}{{ course.price|money }}{% else %}<span class="text-danger">ثبت نشده</span>{% endif %} |
+        قیمت: {% if course.price %}{{ course.price|money }} تومان{% else %}<span class="text-danger">ثبت نشده</span>{% endif %} |
         مدرس: {{ teacher or 'ثبت نشده' }} |
         تعداد دانش‌آموزان: {{ rows|length }}
     </p>
-    <p class="lead">مجموع بیعانه‌ها: {{ total_deposit|money }} | مجموع بدهی‌های باقی‌مانده: <strong class="{% if total_debt %}text-danger{% endif %}">{{ total_debt|money }}</strong></p>
+    <p class="lead">مجموع بیعانه‌ها: {{ total_deposit|money }} تومان | مجموع بدهی‌های باقی‌مانده: <strong class="{% if total_debt %}text-danger{% endif %}">{{ total_debt|money }} تومان</strong></p>
 
     {% if course.end_of_course %}
         <div class="flash error" role="alert">این دوره تمام شده است و دانش‌آموز جدید نمی‌پذیرد.</div>
@@ -25,20 +25,25 @@
             <legend>افزودن دانش‌آموز به دوره (یکی‌یکی)</legend>
             <div class="form-grid">
                 <div class="field">
-                    <label for="national_id_number">کد ملی دانش‌آموز <span class="req" aria-hidden="true">*</span></label>
-                    <input id="national_id_number" name="national_id_number" type="text" required dir="ltr"
-                           list="student-list" value="{{ form.get('national_id_number') or '' }}">
-                    <datalist id="student-list">
-                        {% for nid, name in suggestions %}<option value="{{ nid }}">{{ name }}</option>{% endfor %}
-                    </datalist>
-                    <small>با تایپ کد ملی، نام دانش‌آموزان ثبت‌شده (که هنوز در این دوره نیستند) پیشنهاد می‌شود.</small>
+                    <label for="student-search">دانش‌آموز <span class="req" aria-hidden="true">*</span></label>
+                    <div class="combo" data-url="{{ url_for('course_student_search', course_id=course.id) }}">
+                        <input id="student-search" type="search" autocomplete="off" role="combobox"
+                               aria-expanded="false" aria-controls="student-results" aria-autocomplete="list"
+                               placeholder="نام، نام خانوادگی، نام پدر یا کد ملی را بنویسید"
+                               value="{{ form.get('national_id_number') or '' }}">
+                        <input id="national_id_number" name="national_id_number" type="hidden"
+                               value="{{ form.get('national_id_number') or '' }}">
+                        <ul id="student-results" class="combo-list" role="listbox" hidden></ul>
+                    </div>
+                    <p id="student-selected" class="combo-selected" role="status" hidden></p>
+                    <small>همین‌طور که تایپ می‌کنید نتایج نشان داده می‌شود؛ لازم نیست کد ملی را بدانید. با نام، نام خانوادگی یا نام پدر هم پیدا می‌شود. دانش‌آموزان ثبت‌شده در این دوره در نتایج نمی‌آیند.</small>
                 </div>
 
                 <div class="field">
-                    <label for="deposit">مبلغ بیعانه‌ی دریافتی <span class="req" aria-hidden="true">*</span></label>
+                    <label for="deposit">مبلغ بیعانه‌ی دریافتی(تومان) <span class="req" aria-hidden="true">*</span></label>
                     <input id="deposit" name="deposit" type="text" inputmode="numeric" required dir="ltr"
                            value="{{ form.get('deposit') or '' }}">
-                    <small>از قیمت دوره ({{ course.price|money }}) کم می‌شود و باقی‌مانده بدهی دانش‌آموز است. اگر بیعانه‌ای دریافت نشده ۰ بنویسید.</small>
+                    <small>از قیمت دوره ({{ course.price|money }} تومان) کم می‌شود و باقی‌مانده بدهی دانش‌آموز است. اگر بیعانه‌ای دریافت نشده ۰ بنویسید.</small>
                 </div>
             </div>
 
@@ -66,16 +71,16 @@
                 <tr>
                     <td>{{ r.name }}</td>
                     <td dir="ltr">{{ r.national_id or '—' }}</td>
-                    <td>{{ r.deposit|money }}</td>
-                    <td>{{ r.settled|money }}</td>
-                    <td>{% if r.debt %}<strong class="text-danger">{{ r.debt|money }}</strong>{% else %}0{% endif %}</td>
+                    <td>{{ r.deposit|money }} تومان</td>
+                    <td>{{ r.settled|money }} تومان</td>
+                    <td>{% if r.debt %}<strong class="text-danger">{{ r.debt|money }} تومان</strong>{% else %}0{% endif %}</td>
                     <td>
                         {% if r.debt %}
                         <form method="post" action="{{ url_for('course_payment', link_id=r.link_id) }}" class="pay-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <label class="sr-only" for="amount-{{ r.link_id }}">مبلغ پرداخت</label>
                             <input id="amount-{{ r.link_id }}" name="amount" type="text" inputmode="numeric" dir="ltr"
-                                   placeholder="حداکثر {{ r.debt|money }}" required>
+                                   placeholder="حداکثر {{ r.debt|money }} تومان" required>
                             <button class="btn primary small" type="submit">ثبت پرداخت</button>
                         </form>
                         {% else %}
@@ -95,4 +100,8 @@
         <a class="btn ghost" href="{{ url_for('enroll_pick') }}">انتخاب دوره‌ی دیگر</a>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/script/student-search.js"></script>
 {% endblock %}

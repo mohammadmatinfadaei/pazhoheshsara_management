@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}کل کلاس‌های شما | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">کلاس‌ها</p>
+    <h1>دوره‌های دانش‌آموز</h1>
+    <p class="lead">دوره‌هایی که دانش‌آموز در آن‌ها عضو است، با وضعیت بدهی و حضور و غیاب.</p>
+    {% include "_student_courses.html" %}
+</section>
+{% endblock %}

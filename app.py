@@ -10,15 +10,16 @@ from types import SimpleNamespace
 from functools import wraps
 
 from flask import (
-    Response, abort, flash, redirect, render_template, request, send_file,
+    Response, abort, flash, g, jsonify, redirect, render_template, request, send_file,
     send_from_directory, session, url_for
 )
-from sqlalchemy import func, or_
+from sqlalchemy import false, func, or_, select
 from werkzeug.security import check_password_hash, generate_password_hash
 
 # فایل دیتابیس شما را با نام models.py ذخیره کنید
 from models import (
-    Admins, Attendance, Classes, Courses, Linking_the_course_to_the_class,
+    COURSE_CATEGORIES, DEFAULT_COURSE_CATEGORY,
+    Admins, Attendance, Classes, Courses, UserActions, Linking_the_course_to_the_class,
     Linking_the_items_to_the_locker, Linking_the_student_to_the_course, List_of_items, Loans, Lockers, Notes,
     Payments, Renting_out_a_class, Students, TeacherPayments, Teachers, app, db
 )
@@ -111,6 +112,10 @@ ADMIN_MENU = [
         ("write", "نوشتن یادداشت"),
         ("today", "یادداشت‌های امروز"),
     ]},
+    # لینک مستقیم (بدون زیرمنو): دانلود اکسل آمار سال تحصیلی
+    {"key": "yearly-report", "title": "اکسل گزارش سالانه", "link": "yearly_report_excel"},
+    # فقط برای ادمین کل (is_god)
+    {"key": "audit", "title": "اعمال کاربران", "link": "audit_log", "god_only": True},
 ]
 
 # منوی دانش‌آموز/والدین و دبیران
@@ -127,7 +132,7 @@ USER_MENUS = {
         _PROFILE,
         _CLASSES,
         {"key": "finance", "title": "امور مالی", "items": [
-            ("debts", "بدهی‌ها"),
+            # ("debts", "بدهی‌ها"),
             ("receivables", "طلب‌ها"),
         ]},
     ],
@@ -266,6 +271,8 @@ def inject_nav_menu():
 
     nav = []
     for sec in menu:
+        if sec.get("god_only") and not current_is_god():
+            continue
         if sec.get("link"):
             nav.append({"title": sec["title"], "href": url_for(sec["link"])})
         else:
@@ -305,8 +312,8 @@ def security_headers(resp):
                             "rent_add", "rentals_list", "rental_cancel",
                             "schedule_add", "schedules_list", "schedule_cancel",
                             "finance_today", "finance_debts", "finance_receivables",
-                            "teacher_pay", "teacher_today", "teacher_courses",
-                            "attendance_take",
+                            "teacher_pay", "teacher_today", "teacher_courses", "teacher_receivables",
+                            "attendance_take", "student_course_detail",
                             "course_add", "courses_list", "course_edit",
                             "enroll_pick", "course_students", "course_payment", "course_delete",
                             "teacher_delete", "student_delete", "note_write",
@@ -495,6 +502,12 @@ def dashboard():
         session.clear()
         return redirect(url_for("login"))
     rows, today = [], None
+    if role == "student_parent":
+        student = current_student()
+        if not student:
+            session.clear()
+            return redirect(url_for("login"))
+        rows = student_course_rows(student)
     if role == "teacher":
         teacher = current_teacher()
         if not teacher:  # مثلاً بعد از ورود، نوعش به «متفرقه» تغییر کرده است
@@ -512,7 +525,7 @@ def admin_page(section, item):
     """صفحه‌های زیرمنوی ادمین؛ فعلاً نگه‌دارنده تا هر کدام ساخته شوند."""
     for sec in ADMIN_MENU:
         if sec["key"] == section:
-            for key, title in sec["items"]:
+            for key, title in sec.get("items", ()):
                 if key == item:
                     return render_template("placeholder_page.html",
                                            section_title=sec["title"],
@@ -641,6 +654,440 @@ def validate_teacher_form(form, password, confirm, require_password=True):
 
 def escape_like(text):
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+# ---------- جستجو و صفحه‌بندی مشترک لیست‌های مدیریت ----------
+LIST_PER_PAGE = 15  # تعداد ردیف در هر صفحه‌ی لیست‌های «مدیریت کلاس‌ها»
+
+
+def read_search(param="q"):
+    """عبارت جستجوی ?q= پاک‌سازی‌شده (ارقام فارسی به انگلیسی، فاصله‌های اضافه حذف)؛
+    param: نام پارامتر جستجو، برای صفحه‌ای که دو جستجوی مستقل دارد"""
+    return clean_text(clean(request.args.get(param), 60), 60)
+
+
+def fold_text(text):
+    """برای جستجو در لیست‌های پایتونی: «ي» و «ك» عربی به فارسی و حروف انگلیسی کوچک می‌شوند"""
+    return (text or "").replace("ي", "ی").replace("ك", "ک").lower()
+
+
+def filter_rows(rows, q):
+    """هر کلمه‌ی جستجو باید در رشته‌ی r['hay'] هر ردیف پیدا شود؛ q خالی = همه‌ی ردیف‌ها"""
+    terms = fold_text(q).split()
+    if not terms:
+        return rows
+    found = []
+    for r in rows:
+        hay = fold_text(r["hay"])
+        if all(t in hay for t in terms):
+            found.append(r)
+    return found
+
+
+def make_pagination(page, pages):
+    return SimpleNamespace(page=page, pages=pages, has_prev=page > 1, has_next=page < pages,
+                           prev_num=page - 1, next_num=page + 1)
+
+
+def page_rows(rows, per_page=LIST_PER_PAGE, param="page"):
+    """صفحه‌بندی لیست پایتونی؛ خروجی: (ردیف‌های این صفحه، pagination).
+    param: نام پارامتر شماره‌ی صفحه در آدرس (برای صفحه‌ای که دو جدول مستقل دارد)"""
+    pages = max(1, math.ceil(len(rows) / per_page))
+    page = min(max(request.args.get(param, 1, type=int), 1), pages)
+    start = (page - 1) * per_page
+    return rows[start:start + per_page], make_pagination(page, pages)
+
+
+def page_query(query, per_page=LIST_PER_PAGE):
+    """صفحه‌بندی کوئری (باید از قبل order_by داشته باشد)؛ خروجی: (آیتم‌ها، pagination، تعداد کل)"""
+    total = query.count()
+    pages = max(1, math.ceil(total / per_page))
+    page = min(max(request.args.get("page", 1, type=int), 1), pages)
+    items = query.limit(per_page).offset((page - 1) * per_page).all()
+    return items, make_pagination(page, pages), total
+
+
+def search_courses(query, q):
+    """جستجوی دوره‌ها: هر کلمه در نام دوره، کد دوره، دسته‌بندی، تاریخ شروع یا نام مدرس پیدا شود"""
+    for term in q.split():
+        like = "%" + escape_like(term) + "%"
+        teacher_ids = select(Teachers.national_id_number).where(or_(
+            Teachers.first_name.ilike(like, escape="\\"),
+            Teachers.last_name.ilike(like, escape="\\"),
+        ))
+        query = query.filter(or_(
+            Courses.course_name.ilike(like, escape="\\"),
+            Courses.course_code.ilike(like, escape="\\"),
+            Courses.category.ilike(like, escape="\\"),
+            Courses.activation_date.ilike(like, escape="\\"),
+            Courses.course_instructor_national_id_number.in_(teacher_ids),
+        ))
+    return query
+
+
+# =========================================================
+# USER ACTIONS LOG (اعمال کاربران)
+# هر عملی که چیزی را تغییر می‌دهد (و ورود/خروج و دانلود اکسل) با نام کاربر و زمان در جدول
+# user_actions ثبت می‌شود. صفحه‌ی آن فقط برای ادمین کل (is_god) است.
+# =========================================================
+AUDIT_PER_PAGE = 20
+
+# عنوان کوتاه هر عمل (در ستون action ذخیره می‌شود و برای جستجو و ردیف‌های قدیمی به کار می‌رود)
+AUDIT_TITLES = {
+    "login": "ورود به سامانه", "logout": "خروج از سامانه", "register": "ثبت‌نام کارمند جدید",
+    "teacher_add": "افزودن دبیر", "teacher_edit": "ویرایش دبیر", "teacher_delete": "حذف دبیر",
+    "student_add": "افزودن دانش‌آموز", "student_edit": "ویرایش دانش‌آموز",
+    "student_delete": "حذف دانش‌آموز",
+    "students_export_excel": "دانلود اکسل دانش‌آموزان",
+    "students_export_excel_type": "دانلود اکسل دانش‌آموزان",
+    "yearly_report_excel": "دانلود اکسل گزارش سالانه",
+    "note_write": "نوشتن یادداشت", "note_done": "انجام یادداشت",
+    "locker_add": "افزودن کمد", "locker_delete": "حذف کمد",
+    "item_add": "افزودن وسیله", "item_edit": "ویرایش وسیله", "item_delete": "حذف وسیله",
+    "loan_add": "ثبت امانت", "loan_return": "بازگشت امانت",
+    "class_add": "افزودن کلاس", "class_delete": "حذف کلاس",
+    "rent_add": "ثبت اجاره‌ی کلاس", "rental_cancel": "لغو اجاره‌ی کلاس",
+    "course_add": "افزودن دوره", "course_edit": "ویرایش دوره", "course_delete": "حذف دوره",
+    "course_students": "ثبت دانش‌آموز در دوره", "course_payment": "ثبت پرداخت شهریه",
+    "schedule_add": "برنامه‌ریزی کلاس برای دوره", "schedule_cancel": "لغو جلسه‌ی برنامه‌ریزی‌شده",
+    "teacher_pay": "پرداخت حقوق دبیر", "attendance_take": "ثبت حضور و غیاب",
+    "audit_delete": "حذف یک رکورد از اعمال کاربران",
+    "audit_purge": "پاک کردن مخزن اعمال کاربران",
+}
+# دانلودها با GET انجام می‌شوند ولی عمل حساب می‌شوند
+AUDIT_GET_ENDPOINTS = {"students_export_excel", "students_export_excel_type", "yearly_report_excel"}
+AUDIT_ROLE_LABELS = {"admin": "کارمند", "teacher": "دبیر", "student_parent": "دانش‌آموز/والدین"}
+UNKNOWN = "نامشخص"
+
+
+def now_text_seconds():
+    """زمان فعلی تهران به شکل شمسی با ثانیه: 1405/08/04 14:30:05"""
+    now = datetime.now(IRAN_TZ)
+    return f"{format_jalali(*today_jalali())} {now:%H:%M:%S}"
+
+
+def current_is_god():
+    """آیا کاربر واردشده ادمین کل (مدیر آموزشگاه) است؟ در هر درخواست یک بار حساب می‌شود"""
+    if not hasattr(g, "is_god"):
+        admin = None
+        if session.get("role") == "admin" and session.get("user_id"):
+            admin = db.session.get(Admins, session["user_id"])
+        g.is_god = bool(admin and admin.is_god)
+    return g.is_god
+
+
+def god_required(view):
+    """فقط ادمین کل؛ بقیه‌ی کاربران (حتی کارمندان) خطای ۴۰۳ می‌گیرند"""
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if not current_is_god():
+            abort(403)
+        return view(*args, **kwargs)
+    return wrapper
+
+
+# ---------- برچسب‌های خوانا برای ساختن جمله‌ی هر عمل ----------
+def audit_person(person):
+    return f"«{person.first_name or ''} {person.last_name or ''}»".replace("  ", " ") if person else UNKNOWN
+
+
+def audit_course(course):
+    if not course:
+        return UNKNOWN
+    return f"«{course.course_name}»" + (f" (کد {course.course_code})" if course.course_code else "")
+
+
+def audit_get(model, raw_id):
+    """رکورد را با شناسه‌ی متنی/عددی پیدا می‌کند؛ نبود یا خطا = None"""
+    try:
+        return db.session.get(model, int(raw_id))
+    except (TypeError, ValueError):
+        return None
+
+
+def audit_lookup():
+    """نام چیزهایی که آدرس درخواست به آن‌ها اشاره می‌کند. باید قبل از اجرای view خوانده شود،
+    چون بعد از حذف (دوره، دبیر، ...) دیگر پیدا نمی‌شوند."""
+    args, endpoint, info = request.view_args or {}, request.endpoint, {}
+    if "course_id" in args:
+        course = audit_get(Courses, args["course_id"])
+        info["course"] = audit_course(course)
+        if course and course.course_instructor_national_id_number:
+            teacher = Teachers.query.filter_by(
+                national_id_number=course.course_instructor_national_id_number).first()
+            info["course_teacher"] = audit_person(teacher)
+    if "teacher_id" in args:
+        info["teacher"] = audit_person(audit_get(Teachers, args["teacher_id"]))
+    if "student_id" in args:
+        info["student"] = audit_person(audit_get(Students, args["student_id"]))
+    if "locker_id" in args:
+        locker = audit_get(Lockers, args["locker_id"])
+        info["locker"] = f"شماره‌ی {locker.number_of_locker}" if locker else UNKNOWN
+    if "item_id" in args:
+        item = audit_get(List_of_items, args["item_id"])
+        info["item"] = f"«{item.name_of_item}»" if item else UNKNOWN
+    if "loan_id" in args:
+        loan = audit_get(Loans, args["loan_id"])
+        info["loan"] = f"«{loan.item_name}» از «{loan.borrower_name}»" if loan else UNKNOWN
+    if "class_id" in args:
+        room = audit_get(Classes, args["class_id"])
+        info["class"] = f"شماره‌ی {room.class_number}" if room else UNKNOWN
+    if "note_id" in args:
+        note = audit_get(Notes, args["note_id"])
+        info["note"] = f"«{(note.text or '')[:40]}»" if note else UNKNOWN
+    if "rental_id" in args:
+        rental = audit_get(Renting_out_a_class, args["rental_id"])
+        if rental:
+            teacher = Teachers.query.filter_by(
+                national_id_number=rental.teacher_national_id_number).first()
+            info["rental"] = (f"کلاس {rental.class_number} برای دبیر {audit_person(teacher)} "
+                              f"در {(rental.class_start_time or '')[:16]}")
+        else:
+            info["rental"] = UNKNOWN
+    if "link_id" in args:
+        if endpoint == "course_payment":           # پیوند دانش‌آموز به دوره
+            link = audit_get(Linking_the_student_to_the_course, args["link_id"])
+            if link:
+                student = Students.query.filter_by(
+                    national_id_number=link.student_national_id_number).first()
+                course = Courses.query.filter_by(course_code=link.course_code).first()
+                info["student"], info["course"] = audit_person(student), audit_course(course)
+        else:                                      # جلسه‌ی دوره در کلاس (لغو جلسه / حضور و غیاب)
+            link = audit_get(Linking_the_course_to_the_class, args["link_id"])
+            if link:
+                course = Courses.query.filter_by(course_code=link.course_code).first()
+                info["course"] = audit_course(course)
+                info["session"] = f"در کلاس {link.class_number} در {(link.class_start_time or '')[:16]}"
+    return info
+
+
+def audit_predicate(endpoint, info, form):
+    """«چه کاری» به شکل یک عبارت فعلی؛ فاعل (نام و نقش کاربر) جداگانه جلوی آن می‌آید"""
+    i = lambda key: info.get(key, UNKNOWN)
+    text = lambda key, n=60: clean_text(form.get(key), n)
+    digits = lambda key, n=30: clean_digits(form.get(key), n)
+    amount = parse_money(form.get("amount"))
+    money = f"{amount:,} تومان" if amount else ""
+
+    if endpoint == "login":
+        return "وارد سامانه شد"
+    if endpoint == "logout":
+        return "از سامانه خارج شد"
+    if endpoint == "teacher_add":
+        return f"دبیر جدید «{text('first_name')} {text('last_name')}» را اضافه کرد"
+    if endpoint == "teacher_edit":
+        return f"اطلاعات دبیر {i('teacher')} را ویرایش کرد"
+    if endpoint == "teacher_delete":
+        return f"دبیر {i('teacher')} را حذف کرد"
+    if endpoint == "student_add":
+        return f"دانش‌آموز جدید «{text('first_name')} {text('last_name')}» را اضافه کرد"
+    if endpoint == "student_edit":
+        return f"اطلاعات دانش‌آموز {i('student')} را ویرایش کرد"
+    if endpoint == "student_delete":
+        return f"دانش‌آموز {i('student')} را حذف کرد"
+    if endpoint in ("students_export_excel", "students_export_excel_type"):
+        return "اکسل دانش‌آموزان را دانلود کرد"
+    if endpoint == "yearly_report_excel":
+        return "اکسل گزارش سالانه را دانلود کرد"
+    if endpoint == "note_write":
+        return f"یادداشتی برای تاریخ {digits('date_of_show', 20)} نوشت: «{text('text', 80)}»"
+    if endpoint == "note_done":
+        return f"یادداشت {i('note')} را انجام‌شده کرد و حذف شد"
+    if endpoint == "locker_add":
+        return f"کمد شماره‌ی {digits('number_of_locker', 10)} را اضافه کرد"
+    if endpoint == "locker_delete":
+        return f"کمد {i('locker')} را حذف کرد"
+    if endpoint == "item_add":
+        return f"وسیله‌ی «{text('name_of_item')}» را اضافه کرد"
+    if endpoint == "item_edit":
+        return f"وسیله‌ی {i('item')} را ویرایش کرد"
+    if endpoint == "item_delete":
+        return f"وسیله‌ی {i('item')} را حذف کرد"
+    if endpoint == "loan_add":
+        item = audit_get(List_of_items, form.get("item_id"))
+        return (f"وسیله‌ی {('«' + item.name_of_item + '»') if item else UNKNOWN} را به "
+                f"«{text('borrower_name')}» امانت داد")
+    if endpoint == "loan_return":
+        return f"بازگشت امانت {i('loan')} را ثبت کرد"
+    if endpoint == "class_add":
+        return (f"کلاس شماره‌ی {digits('class_number', 10)} را در طبقه‌ی "
+                f"{digits('floor_number', 10)} اضافه کرد")
+    if endpoint == "class_delete":
+        return f"کلاس {i('class')} را حذف کرد"
+    if endpoint == "rent_add":
+        room = audit_get(Classes, form.get("class_id"))
+        teacher = audit_get(Teachers, form.get("teacher_id"))
+        return (f"کلاس {('شماره‌ی ' + str(room.class_number)) if room else UNKNOWN} را برای دبیر "
+                f"{audit_person(teacher)} در تاریخ {digits('date', 20)} از ساعت {digits('start_time', 10)} "
+                f"تا {digits('end_time', 10)}" + (f" به مبلغ {money}" if money else "") + " اجاره داد")
+    if endpoint == "rental_cancel":
+        return f"اجاره‌ی {i('rental')} را لغو کرد"
+    if endpoint == "course_add":
+        return (f"دوره‌ی «{text('course_name', 100)}» (کد {digits('course_code')}، دسته‌ی "
+                f"{text('category', 30)}) را اضافه کرد")
+    if endpoint == "course_edit":
+        return f"دوره‌ی {i('course')} را ویرایش کرد"
+    if endpoint == "course_delete":
+        return f"دوره‌ی {i('course')} را حذف کرد"
+    if endpoint == "course_students":
+        student = Students.query.filter_by(national_id_number=digits("national_id_number", 40)).first()
+        deposit = parse_money(form.get("deposit"))
+        return (f"دانش‌آموز {audit_person(student)} را در دوره‌ی {i('course')} ثبت‌نام کرد"
+                + (f" (بیعانه {deposit:,} تومان)" if deposit else ""))
+    if endpoint == "course_payment":
+        return (f"پرداخت {money or UNKNOWN} از شهریه‌ی دانش‌آموز {i('student')} را در دوره‌ی "
+                f"{i('course')} ثبت کرد")
+    if endpoint == "schedule_add":
+        course = audit_get(Courses, form.get("course_id"))
+        room = audit_get(Classes, form.get("class_id"))
+        return (f"دوره‌ی {audit_course(course)} را در کلاس "
+                f"{('شماره‌ی ' + str(room.class_number)) if room else UNKNOWN} در تاریخ {digits('date', 20)} "
+                f"از ساعت {digits('start_time', 10)} تا {digits('end_time', 10)} برنامه‌ریزی کرد")
+    if endpoint == "schedule_cancel":
+        return f"جلسه‌ی دوره‌ی {i('course')} {i('session')} را لغو کرد"
+    if endpoint == "teacher_pay":
+        return (f"{money or UNKNOWN} از حقوق دبیر {i('course_teacher')} را برای دوره‌ی "
+                f"{i('course')} پرداخت کرد")
+    if endpoint == "attendance_take":
+        return f"حضور و غیاب جلسه‌ی دوره‌ی {i('course')} {i('session')} را ثبت کرد"
+    return f"عمل «{AUDIT_TITLES.get(endpoint, endpoint)}» را انجام داد"
+
+
+def audit_row_text(row):
+    """جمله‌ی یک ردیف؛ ردیف‌های قدیمی که جمله ندارند از فیلدهایشان ساخته می‌شوند"""
+    if row.detail and row.detail.endswith("."):
+        return row.detail
+    extra = f" ({row.detail})" if row.detail else ""
+    return f"{row.user_role} «{row.user_name}» {row.action}{extra}."
+
+
+@app.before_request
+def audit_remember_actor():
+    # کسی که درخواست را فرستاده را قبل از اجرای view نگه می‌داریم (بعد از خروج، session خالی است)
+    g.audit_actor = (session.get("role"), session.get("user_id"), session.get("name"))
+    g.audit_flash_count = len(session.get("_flashes", []))
+    g.audit_info = {}
+    if request.method == "POST" or request.endpoint in AUDIT_GET_ENDPOINTS:
+        try:
+            g.audit_info = audit_lookup()
+        except Exception:
+            db.session.rollback()
+
+
+@app.after_request
+def audit_log_action(resp):
+    """بعد از هر عمل موفق یک ردیف در user_actions می‌نویسد؛ خطای ثبت هرگز پاسخ را خراب نمی‌کند"""
+    try:
+        endpoint = request.endpoint
+        is_done_post = request.method == "POST" and 300 <= resp.status_code < 400
+        is_download = endpoint in AUDIT_GET_ENDPOINTS and resp.status_code == 200
+        if not (is_done_post or is_download):
+            return resp
+        # عملی که با پیام خطا تمام شده انجام نشده است
+        new_flashes = session.get("_flashes", [])[getattr(g, "audit_flash_count", 0):]
+        if any(item[0] == "error" for item in new_flashes):
+            return resp
+
+        role, user_id, name = getattr(g, "audit_actor", (None, None, None))
+        if not user_id:                         # ورود یا ثبت‌نام: قبل از درخواست کسی وارد نبوده
+            role, user_id, name = session.get("role"), session.get("user_id"), session.get("name")
+        if not user_id and endpoint != "register":
+            return resp
+
+        role_label = AUDIT_ROLE_LABELS.get(role, "مهمان")
+        if role == "admin" and user_id:
+            admin = db.session.get(Admins, user_id)
+            if admin and admin.is_god:
+                role_label = "مدیر آموزشگاه"
+
+        if endpoint == "register":              # فقط نام؛ هیچ‌وقت رمز یا کد ورودی ثبت نمی‌شود
+            name = clean_text(f"{request.form.get('first_name', '')} {request.form.get('last_name', '')}", 100)
+            sentence = f"«{name}» در سامانه ثبت‌نام کرد."
+        else:
+            predicate = getattr(g, "audit_detail", None)
+            if not predicate:
+                try:
+                    predicate = audit_predicate(endpoint, getattr(g, "audit_info", {}), request.form)
+                except Exception:
+                    db.session.rollback()
+                    predicate = f"عمل «{AUDIT_TITLES.get(endpoint, endpoint)}» را انجام داد"
+            sentence = f"{role_label} «{name or '—'}» {predicate}."
+
+        db.session.add(UserActions(
+            created_at=now_text_seconds(), user_role=role_label, user_id=user_id,
+            user_name=name or "—", action=AUDIT_TITLES.get(endpoint, endpoint or "—"),
+            detail=sentence[:400], ip=request.remote_addr))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return resp
+
+
+def audit_back_url():
+    """بعد از حذف یک رکورد، به همان جستجو و صفحه برگرد"""
+    back_q = clean_text(clean(request.form.get("q"), 60), 60)
+    back_page = request.form.get("page", type=int)
+    return url_for("audit_log", q=back_q or None,
+                   page=back_page if back_page and back_page > 1 else None)
+
+
+@app.route("/admin/audit")
+@login_required
+@role_required("admin")
+@god_required
+def audit_log():
+    """فهرست اعمال کاربران (تازه‌ترین اول) با جستجو و صفحه‌بندی؛ فقط ادمین کل"""
+    q = read_search()
+    query = UserActions.query
+    for term in q.split():
+        like = "%" + escape_like(term) + "%"
+        query = query.filter(or_(
+            UserActions.user_name.ilike(like, escape="\\"),
+            UserActions.user_role.ilike(like, escape="\\"),
+            UserActions.action.ilike(like, escape="\\"),
+            UserActions.detail.ilike(like, escape="\\"),
+            UserActions.created_at.ilike(like, escape="\\"),
+        ))
+    rows, pagination, found = page_query(query.order_by(UserActions.id.desc()), AUDIT_PER_PAGE)
+    rows = [{"id": r.id, "time": (r.created_at or "")[:16], "text": audit_row_text(r)} for r in rows]
+    return render_template("audit_log.html", rows=rows, q=q, pagination=pagination,
+                           found=found, total=UserActions.query.count())
+
+
+@app.route("/admin/audit/<int:action_id>/delete", methods=["POST"])
+@login_required
+@role_required("admin")
+@god_required
+def audit_delete(action_id):
+    row = db.session.get(UserActions, action_id)
+    if row:
+        g.audit_detail = f"یک رکورد از اعمال کاربران را حذف کرد (رکورد شماره‌ی {action_id})"
+        db.session.delete(row)
+        db.session.commit()
+        flash("رکورد حذف شد.", "success")
+    return redirect(audit_back_url())
+
+
+@app.route("/admin/audit/purge", methods=["POST"])
+@login_required
+@role_required("admin")
+@god_required
+def audit_purge():
+    """قدیمی‌ترین درصدی از رکوردها را (از ابتدای مخزن) پاک می‌کند؛ مثلاً ۱۰٪ از ۱۰۰ رکورد = رکورد ۱ تا ۱۰"""
+    percent = request.form.get("percent", type=int)
+    total = UserActions.query.count()
+    if not percent or not 1 <= percent <= 100 or not total:
+        flash("مقدار پاک‌سازی معتبر نیست یا مخزن خالی است.", "error")
+        return redirect(url_for("audit_log"))
+
+    count = min(total, -(-total * percent // 100))          # گرد به بالا: هر درصد بیشتر از صفر حداقل یک رکورد
+    cutoff = (db.session.query(UserActions.id).order_by(UserActions.id)
+              .offset(count - 1).limit(1).scalar())
+    UserActions.query.filter(UserActions.id <= cutoff).delete(synchronize_session=False)
+    db.session.commit()
+    g.audit_detail = f"قدیمی‌ترین {count:,} رکورد اعمال کاربران ({percent}٪ مخزن) را پاک کرد"
+    flash(f"قدیمی‌ترین {count:,} رکورد ({percent}٪) پاک شد.", "success")
+    return redirect(url_for("audit_log"))
 
 
 @app.route("/admin/teachers/add", methods=["GET", "POST"])
@@ -1211,6 +1658,141 @@ def students_export_excel():
     return send_students_excel(students, "دانش‌آموزان", "all")
 
 
+# =========================================================
+# YEARLY REPORT (اکسل گزارش سالانه)
+# سال تحصیلی از اول مهر تا پایان شهریور سال بعد است؛ مثلاً ۱۴۰۵-۱۴۰۶ یعنی
+# از ۱۴۰۵/۰۷/۰۱ تا ۱۴۰۶/۰۶/۳۱. همه‌ی مقدارهای گزارش عدد هستند.
+# =========================================================
+
+def current_academic_year():
+    """سال شروع سال تحصیلی جاری؛ آبان ۱۴۰۵ و خرداد ۱۴۰۶ هر دو در سال تحصیلی ۱۴۰۵-۱۴۰۶ هستند"""
+    jy, jm, _ = today_jalali()
+    return jy if jm >= 7 else jy - 1
+
+
+def academic_year_range(start_year):
+    """بازه‌ی نیمه‌باز [اول مهر start_year، اول مهر سال بعد) به شکل رشته‌ی شمسی؛ چون تاریخ‌ها با
+    صفر پر می‌شوند (۱۴۰۵/۰۷/۰۱)، مقایسه‌ی رشته‌ای همان مقایسه‌ی تاریخ است"""
+    return f"{start_year:04d}/07/01", f"{start_year + 1:04d}/07/01"
+
+
+def courses_held_in_year(courses, first_session, start_year, current_year):
+    """دوره‌هایی که در سال تحصیلی start_year شروع به برگزاری شده‌اند (هر دوره فقط در یک سال شمرده می‌شود).
+    courses: دوره‌هایی که حداقل یک جلسه‌شان شروع شده؛ first_session: {کد دوره: زمان شروع اولین جلسه}.
+    سالِ دوره = سالِ اولین جلسه‌ی برگزارشده‌اش؛ اگر جلسه‌ای در برنامه نمانده بود، سالِ «تاریخ شروع» دوره؛
+    دوره‌ای که هیچ‌کدام را ندارد (داده‌ی قدیمی) در سال تحصیلی جاری حساب می‌شود."""
+    year_from, year_to = academic_year_range(start_year)
+    held = []
+    for course in courses:
+        when = first_session.get(course.course_code) or course.activation_date
+        if when:
+            if year_from <= when < year_to:
+                held.append(course)
+        elif start_year == current_year:
+            held.append(course)
+    return held
+
+
+def yearly_report_numbers(start_year):
+    """فهرست (عنوان ستون، عدد) گزارش سال تحصیلی start_year تا start_year+1"""
+    link = Linking_the_course_to_the_class
+    now = now_text()
+    # زمان شروع اولین جلسه‌ی شروع‌شده‌ی هر دوره
+    first_session = dict(db.session.query(link.course_code, func.min(link.class_start_time))
+                         .filter(link.class_start_time.is_not(None), link.class_start_time <= now)
+                         .group_by(link.course_code).all())
+    held = courses_held_in_year(Courses.query.filter(Courses.number_of_session > 0).all(),
+                                first_session, start_year, current_academic_year())
+
+    per_category = {}
+    for course in held:
+        category = course.category or DEFAULT_COURSE_CATEGORY
+        per_category[category] = per_category.get(category, 0) + 1
+
+    # هر دانش‌آموز یک بار شمرده می‌شود، حتی اگر در چند دوره ثبت‌نام کرده باشد
+    codes = {c.course_code for c in held if c.course_code}
+    enrolled = Linking_the_student_to_the_course
+    students = (db.session.query(func.count(func.distinct(enrolled.student_national_id_number)))
+                .filter(enrolled.course_code.in_(codes)).scalar() if codes else 0)
+
+    # دبیران عضو آموزشگاه؛ دبیران متفرقه فقط کلاس اجاره می‌کنند و عضو حساب نمی‌شوند
+    teachers = Teachers.query.filter(or_(Teachers.type.is_(None), Teachers.type != "متفرقه")).count()
+
+    year_from, year_to = academic_year_range(start_year)
+    rentals = Renting_out_a_class.query.filter(
+        Renting_out_a_class.class_start_time >= year_from,
+        Renting_out_a_class.class_start_time < year_to).count()
+
+    rows = [("تعداد کلاس‌های برگزار شده در سال تحصیلی", len(held))]
+    for category in COURSE_CATEGORIES:
+        if category != DEFAULT_COURSE_CATEGORY:
+            rows.append((f"تعداد کلاس‌های {category} امسال", per_category.get(category, 0)))
+    rows += [
+        ("تعداد کل دانش‌آموزان شرکت‌کننده در کلاس‌ها", students or 0),
+        ("تعداد دبیران حاضر در مجموعه", teachers),
+        ("تعداد کل کلاس‌های اجاره شده متفرقه", rentals),
+    ]
+    return rows
+
+
+def build_yearly_workbook(rows, sheet_title):
+    """اکسل دو ردیفی (در حافظه): ردیف اول عنوان ستون‌ها، ردیف دوم مقدارهای عددی"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_title
+    ws.sheet_view.rightToLeft = True
+
+    header_font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="1B2A41")
+    body_font = Font(name="Arial", size=12, bold=True)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for col, (label, value) in enumerate(rows, start=1):
+        head = ws.cell(row=1, column=col, value=label)
+        head.font, head.fill, head.alignment = header_font, header_fill, center
+        cell = ws.cell(row=2, column=col, value=int(value))  # عدد واقعی، نه متن
+        cell.number_format = "0"
+        cell.font, cell.alignment = body_font, center
+        ws.column_dimensions[get_column_letter(col)].width = 22
+    ws.row_dimensions[1].height = 50
+    ws.row_dimensions[2].height = 28
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+@app.route("/admin/reports/yearly-excel")
+@login_required
+@role_required("admin")
+def yearly_report_excel():
+    """دانلود اکسل آمار سال تحصیلی جاری؛ برای سال‌های قبل: ?year=1404 (سال شروع سال تحصیلی)"""
+    try:
+        import openpyxl  # noqa: F401
+    except ImportError:
+        flash("برای ساخت اکسل باید کتابخانه openpyxl نصب باشد: pip install openpyxl", "error")
+        return redirect(url_for("dashboard"))
+
+    current = current_academic_year()
+    start_year = request.args.get("year", type=int)
+    if not start_year or not (1390 <= start_year <= current):
+        start_year = current
+
+    buffer = build_yearly_workbook(yearly_report_numbers(start_year),
+                                   f"{start_year}-{start_year + 1}")
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=f"yearly-report-{start_year}-{start_year + 1}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 @app.route("/admin/students/export-excel/<kind>")
 @login_required
 @role_required("admin")
@@ -1511,6 +2093,42 @@ def parse_jalali_date(text):
     if gregorian_to_jalali(*jalali_to_gregorian(jy, jm, jd)) != (jy, jm, jd):
         return None
     return format_jalali(jy, jm, jd)
+
+
+def parse_flexible_date(text):
+    """تاریخ تایپ‌شده را به شکل شمسی 1405/07/20 برمی‌گرداند؛ نامعتبر = None.
+    علاوه بر شکل‌هایی که parse_jalali_date می‌پذیرد: ترتیب روز/ماه/سال (20/07/1405)،
+    هشت رقم پشت‌سرهم (14050720)، جداکننده‌های غیرمعمول (\\ ⁄ ／ ٫ ،)، ساعتِ انتهای تاریخ،
+    و تاریخ میلادی (2026-10-12) که به شمسی تبدیل می‌شود. سال دو رقمی پذیرفته نمی‌شود."""
+    t = clean(text, 40)
+    t = re.sub(r"\s+\d{1,2}:\d{2}.*$", "", t)                       # ساعت انتهای تاریخ
+    t = re.sub(r"[\\/.\-\u2044\u2215\uff0f\u066b\u066c\u060c,]+", "/", t)
+    t = re.sub(r"\s+", "", t)
+    if re.fullmatch(r"\d{8}", t):
+        t = f"{t[:4]}/{t[4:6]}/{t[6:]}"
+    parts = t.split("/")
+    if len(parts) != 3 or not all(p.isdigit() for p in parts):
+        return None
+    if len(parts[0]) == 4:
+        year, month, day = (int(p) for p in parts)
+    elif len(parts[2]) == 4:                       # روز/ماه/سال
+        day, month, year = (int(p) for p in parts)
+    else:
+        return None
+    if 1700 <= year <= 2200:                       # میلادی
+        try:
+            date(year, month, day)
+        except ValueError:
+            return None
+        return format_jalali(*gregorian_to_jalali(year, month, day))
+    return parse_jalali_date(f"{year}/{month}/{day}")
+
+
+def shift_jalali_day(day, delta):
+    """روز قبل/بعد از یک تاریخ شمسی (به شکل 1405/07/20)"""
+    jy, jm, jd = (int(p) for p in day.split("/"))
+    moved = date(*jalali_to_gregorian(jy, jm, jd)) + timedelta(days=delta)
+    return format_jalali(*gregorian_to_jalali(moved.year, moved.month, moved.day))
 
 
 @app.route("/admin/notes/write", methods=["GET", "POST"])
@@ -2328,7 +2946,7 @@ def rent_add():
             db.session.commit()
             name = f"{teacher.first_name or ''} {teacher.last_name or ''}".strip()
             flash(f"کلاس {cls.class_number} در {day} از {start_hm} تا {end_hm} به {name} اجاره داده شد؛ "
-                  f"مبلغ دریافتی: {amount:,}.", "success")
+                  f"مبلغ دریافتی: {amount:,} تومان.", "success")
             return redirect(url_for("rentals_list"))
 
     bookings = sorted(upcoming_bookings().items(), key=lambda item: natural_key(item[0]))
@@ -2358,7 +2976,16 @@ def rentals_list():
                      "date": start[:10], "from": start[11:16], "to": end[11:16],
                      "amount": r.amount or 0, "state": state, "label": labels[state],
                      "paid_on": r.registration_date})
-    return render_template("rentals_list.html", rows=rows,
+        row = rows[-1]
+        row["hay"] = (f"کلاس {row['class_number'] or ''} {row['class_number'] or ''} {row['teacher']} "
+                      f"{row['date']} {row['from']} {row['to']} {row['label']} "
+                      f"{row['amount']} {row['amount']:,}")
+
+    q = read_search()
+    matched = filter_rows(rows, q)
+    shown, pagination = page_rows(matched)
+    return render_template("rentals_list.html", rows=shown, q=q, pagination=pagination,
+                           count_all=len(rows), found=len(matched),
                            total=sum(r["amount"] for r in rows),
                            running=sum(1 for r in rows if r["state"] == "running"))
 
@@ -2401,13 +3028,13 @@ def rental_cancel(rental_id):
             title=f"لغو اجاره‌ی در حال برگزاری: {label}",
             question=("با لغو، کلاس همین الان تمام اعلام می‌شود و ساعت پایان اجاره به همین لحظه "
                       "تغییر می‌کند. اجاره از لیست حذف نمی‌شود."),
-            extra_note=f"مبلغ دریافتی ({amount:,}) تغییری نمی‌کند و در سابقه می‌ماند.",
+            extra_note=f"مبلغ دریافتی ({amount:,} تومان) تغییری نمی‌کند و در سابقه می‌ماند.",
             submit_label="بله، لغو شود و کلاس تمام شود",
         )
     elif state == "ended":
-        context.update(extra_note=f"مبلغ ثبت‌شده‌ی این اجاره ({amount:,}) هم از سابقه حذف می‌شود.")
+        context.update(extra_note=f"مبلغ ثبت‌شده‌ی این اجاره ({amount:,} تومان) هم از سابقه حذف می‌شود.")
     else:
-        context.update(extra_note=(f"مبلغ ثبت‌شده‌ی این اجاره ({amount:,}) از سابقه حذف می‌شود؛ "
+        context.update(extra_note=(f"مبلغ ثبت‌شده‌ی این اجاره ({amount:,} تومان) از سابقه حذف می‌شود؛ "
                                    "پس‌دادن پول به دبیر با خود شماست."))
     return render_template("confirm_delete.html", **context)
 
@@ -2470,13 +3097,14 @@ def read_course_teacher(raw_id):
 @login_required
 @role_required("admin")
 def course_add():
-    form = {"course_name": "", "course_code": "", "price": "", "teacher_salary": "",
+    form = {"course_name": "", "course_code": "", "category": "", "price": "", "teacher_salary": "",
             "teacher_id": "", "activation_date": ""}
 
     if request.method == "POST":
         form = {
             "course_name": clean_text(request.form.get("course_name"), 100),
             "course_code": clean_digits(request.form.get("course_code"), 30),
+            "category": clean_text(request.form.get("category"), 30),
             "price": clean_digits(request.form.get("price"), 25),
             "teacher_salary": clean_digits(request.form.get("teacher_salary"), 25),
             "teacher_id": clean_digits(request.form.get("teacher_id"), 10),
@@ -2490,6 +3118,8 @@ def course_add():
         error = None
         if not form["course_name"]:
             error = "نام دوره را وارد کنید."
+        elif form["category"] not in COURSE_CATEGORIES:
+            error = "دسته‌بندی دوره را از فهرست انتخاب کنید."
         elif not form["course_code"]:
             error = "کد دوره را وارد کنید."
         elif Courses.query.filter(
@@ -2512,6 +3142,7 @@ def course_add():
             db.session.add(Courses(
                 course_name=form["course_name"],
                 course_code=form["course_code"],
+                category=form["category"],
                 price=price,
                 teacher_salary=salary,
                 course_instructor_national_id_number=teacher.national_id_number if teacher else None,
@@ -2529,6 +3160,7 @@ def course_add():
             return redirect(url_for("courses_list"))
 
     return render_template("course_form.html", form=form, teachers=teacher_choices(),
+                           categories=COURSE_CATEGORIES,
                            is_edit=False, heading="افزودن دوره",
                            submit_label="ثبت دوره", form_action=url_for("course_add"),
                            cancel_url=url_for("courses_list"))
@@ -2583,7 +3215,7 @@ def course_delete_reasons(courses):
             else:
                 remaining = c.teacher_salary - paid.get(code, 0)
                 if remaining > 0:
-                    reason = (f"حقوق مدرس هنوز تسویه نشده است (باقی‌مانده: {remaining:,}). "
+                    reason = (f"حقوق مدرس هنوز تسویه نشده است (باقی‌مانده: {remaining:,} تومان). "
                               "بعد از پرداخت کامل حقوق، دوره قابل حذف است.")
         if reason is None and owing.get(code):
             reason = f"{owing[code]} دانش‌آموز هنوز بدهی این دوره را نپرداخته‌اند."
@@ -2613,6 +3245,7 @@ def build_course_rows(courses):
         else:
             state, label = "waiting", "غیرفعال (منتظر ثبت مدرس)"
         rows.append({"id": c.id, "code": c.course_code, "name": c.course_name,
+                     "category": c.category or DEFAULT_COURSE_CATEGORY,
                      "teacher": teacher_name or ("نامشخص" if c.course_instructor_national_id_number else None),
                      "session": session_label(c.number_of_session), "students": c.number_of_students or 0,
                      "price": c.price,
@@ -2625,9 +3258,17 @@ def build_course_rows(courses):
 @login_required
 @role_required("admin")
 def courses_list():
-    rows = build_course_rows(Courses.query.order_by(Courses.id.desc()).all())
-    active_count = sum(1 for r in rows if r["state"] == "active")
-    return render_template("courses_list.html", rows=rows, active_count=active_count)
+    q = read_search()
+    courses, pagination, found = page_query(
+        search_courses(Courses.query, q).order_by(Courses.id.desc()))
+    # «فعال» یعنی تمام‌نشده، فعال و دارای مدرس (همان قاعده‌ی build_course_rows)
+    active_count = Courses.query.filter(
+        Courses.end_of_course.is_not(True), Courses.active.is_(True),
+        Courses.course_instructor_national_id_number.is_not(None),
+        Courses.course_instructor_national_id_number != "").count()
+    return render_template("courses_list.html", rows=build_course_rows(courses), q=q,
+                           found=found, total=Courses.query.count(),
+                           active_count=active_count, pagination=pagination)
 
 
 @app.route("/admin/classes/enroll")
@@ -2635,10 +3276,13 @@ def courses_list():
 @role_required("admin")
 def enroll_pick():
     """انتخاب دوره برای ثبت دانش‌آموز؛ دوره‌های تمام‌شده نمایش داده نمی‌شوند"""
-    courses = Courses.query.filter(
-        or_(Courses.end_of_course.is_(None), Courses.end_of_course.is_(False))
-    ).order_by(Courses.id.desc()).all()
-    return render_template("course_pick.html", rows=build_course_rows(courses))
+    q = read_search()
+    open_courses = Courses.query.filter(
+        or_(Courses.end_of_course.is_(None), Courses.end_of_course.is_(False)))
+    courses, pagination, found = page_query(
+        search_courses(open_courses, q).order_by(Courses.id.desc()))
+    return render_template("course_pick.html", rows=build_course_rows(courses), q=q,
+                           found=found, total=open_courses.count(), pagination=pagination)
 
 
 def settled_amount(student_national_id, course_code):
@@ -2667,6 +3311,47 @@ def max_paid_in_course(course):
         return 0
     links = Linking_the_student_to_the_course.query.filter_by(course_code=course.course_code).all()
     return max((paid_so_far(l) for l in links), default=0)
+
+
+@app.route("/admin/classes/course/<int:course_id>/student-search")
+@login_required
+@role_required("admin")
+def course_student_search(course_id):
+    """جستجوی لحظه‌ای دانش‌آموز برای افزودن به یک دوره. هر کلمه‌ی جستجو باید در یکی از این‌ها باشد:
+    نام، نام خانوادگی، نام پدر یا کد ملی؛ پس بچه‌هایی که کد ملی‌شان را نمی‌دانند با نام خود یا نام پدرشان
+    پیدا می‌شوند. دانش‌آموزانی که قبلاً در همین دوره ثبت شده‌اند در نتایج نمی‌آیند."""
+    course = db.session.get(Courses, course_id)
+    if not course:
+        abort(404)
+    q = read_search()
+    if len(q) < 2:
+        return jsonify(results=[])
+
+    # مقدار ذخیره‌شده در دیتابیس هم «ي» و «ك» عربی را به فارسی تبدیل می‌کنیم (واژه‌ی جستجو از قبل
+    # فارسی است)، پس نام‌هایی که با هر ترکیبی از حروف ذخیره شده‌اند پیدا می‌شوند
+    persian = lambda column: func.replace(func.replace(column, "ي", "ی"), "ك", "ک")
+    query = Students.query
+    for term in q.split():
+        like = "%" + escape_like(term) + "%"
+        query = query.filter(or_(
+            persian(Students.first_name).ilike(like, escape="\\"),
+            persian(Students.last_name).ilike(like, escape="\\"),
+            persian(Students.father_name).ilike(like, escape="\\"),
+            Students.national_id_number.ilike(like, escape="\\"),
+        ))
+
+    if course.course_code:
+        enrolled = [l.student_national_id_number for l in
+                    Linking_the_student_to_the_course.query.filter_by(course_code=course.course_code).all()]
+        if enrolled:
+            query = query.filter(Students.national_id_number.not_in(enrolled))
+
+    students = query.order_by(Students.last_name, Students.first_name).limit(10).all()
+    return jsonify(results=[{
+        "nid": st.national_id_number,
+        "name": f"{st.first_name or ''} {st.last_name or ''}".strip(),
+        "father": st.father_name or "",
+    } for st in students])
 
 
 @app.route("/admin/classes/course/<int:course_id>/students", methods=["GET", "POST"])
@@ -2698,7 +3383,7 @@ def course_students(course_id):
         elif not course.price:
             error = "قیمت این دوره ثبت نشده است؛ ابتدا از «ویرایش دوره» قیمت را ثبت کنید."
         elif not form["national_id_number"]:
-            error = "کد ملی دانش‌آموز را وارد کنید."
+            error = "دانش‌آموز را از نتایج جستجو انتخاب کنید (یا کد ملی را وارد کنید)."
         elif not student:
             error = "دانش‌آموزی با این کد ملی پیدا نشد."
         elif Linking_the_student_to_the_course.query.filter_by(
@@ -2708,7 +3393,7 @@ def course_students(course_id):
         elif deposit is None:
             error = "مبلغ بیعانه را به عدد وارد کنید (۰ هم قبول است)."
         elif deposit > course.price:
-            error = f"بیعانه نمی‌تواند از قیمت دوره ({course.price:,}) بیشتر باشد."
+            error = f"بیعانه نمی‌تواند از قیمت دوره ({course.price:,} تومان) بیشتر باشد."
 
         if error:
             flash(error, "error")
@@ -2730,7 +3415,7 @@ def course_students(course_id):
             count = sync_course_student_count(course.course_code)
             db.session.commit()
             full_name = f"{student.first_name or ''} {student.last_name or ''}".strip()
-            flash(f"{full_name} در دوره ثبت شد؛ بیعانه: {deposit:,} | بدهی باقی‌مانده: {debt:,} | "
+            flash(f"{full_name} در دوره ثبت شد؛ بیعانه: {deposit:,} تومان | بدهی باقی‌مانده: {debt:,} تومان | "
                   f"تعداد دانش‌آموزان دوره: {count}.", "success")
             return redirect(url_for("course_students", course_id=course.id))
 
@@ -2789,7 +3474,7 @@ def course_payment(link_id):
     elif amount is None or amount < 1:
         flash("مبلغ پرداخت را به عدد و بیشتر از صفر وارد کنید.", "error")
     elif amount > debt:
-        flash(f"مبلغ پرداخت نمی‌تواند از بدهی باقی‌مانده ({debt:,}) بیشتر باشد.", "error")
+        flash(f"مبلغ پرداخت نمی‌تواند از بدهی باقی‌مانده ({debt:,} تومان) بیشتر باشد.", "error")
     else:
         link.debt = debt - amount
         db.session.add(Payments(
@@ -2799,9 +3484,9 @@ def course_payment(link_id):
             payment_date=format_jalali(*today_jalali())))
         db.session.commit()
         if link.debt == 0:
-            flash(f"پرداخت {amount:,} ثبت شد و بدهی کاملاً تسویه شد.", "success")
+            flash(f"پرداخت {amount:,} تومان ثبت شد و بدهی کاملاً تسویه شد.", "success")
         else:
-            flash(f"پرداخت {amount:,} ثبت شد؛ بدهی باقی‌مانده: {link.debt:,}.", "success")
+            flash(f"پرداخت {amount:,} تومان ثبت شد؛ بدهی باقی‌مانده: {link.debt:,} تومان.", "success")
     return redirect(back)
 
 
@@ -2864,6 +3549,7 @@ def course_edit(course_id):
             national_id_number=course.course_instructor_national_id_number).first()
     form = {"course_name": course.course_name or "",
             "course_code": course.course_code or "",
+            "category": course.category or DEFAULT_COURSE_CATEGORY,
             "price": str(course.price or ""),
             "teacher_salary": str(course.teacher_salary or ""),
             "teacher_id": str(current.id) if current else "",
@@ -2872,6 +3558,7 @@ def course_edit(course_id):
     if request.method == "POST":
         form.update({
             "course_name": clean_text(request.form.get("course_name"), 100),
+            "category": clean_text(request.form.get("category"), 30),
             "price": clean_digits(request.form.get("price"), 25),
             "teacher_salary": clean_digits(request.form.get("teacher_salary"), 25),
             "teacher_id": clean_digits(request.form.get("teacher_id"), 10),
@@ -2887,16 +3574,18 @@ def course_edit(course_id):
         error = None
         if not form["course_name"]:
             error = "نام دوره را وارد کنید."
+        elif form["category"] not in COURSE_CATEGORIES:
+            error = "دسته‌بندی دوره را از فهرست انتخاب کنید."
         elif not price:
             error = "قیمت دوره را به عدد وارد کنید (بیشتر از صفر)."
         elif price < min_price:
             error = (f"قیمت نمی‌تواند کمتر از مبلغی باشد که یک دانش‌آموز تا الان "
-                     f"پرداخته است ({min_price:,}).")
+                     f"پرداخته است ({min_price:,} تومان).")
         elif not salary:
             error = "حقوق مدرس برای این دوره را به عدد وارد کنید (بیشتر از صفر)."
         elif salary < salary_paid:
             error = (f"حقوق نمی‌تواند کمتر از مبلغی باشد که تا الان به مدرس پرداخت شده "
-                     f"({salary_paid:,}).")
+                     f"({salary_paid:,} تومان).")
         elif teacher_error:
             error = teacher_error
         elif start_error:
@@ -2910,6 +3599,7 @@ def course_edit(course_id):
             now_active = teacher is not None and not course.end_of_course
 
             course.course_name = form["course_name"]
+            course.category = form["category"]
             course.price = price
             course.teacher_salary = salary
             recompute_course_debts(course)  # با تغییر قیمت، بدهی دانش‌آموزان دوباره حساب شود
@@ -2928,6 +3618,7 @@ def course_edit(course_id):
             return redirect(url_for("courses_list"))
 
     return render_template("course_form.html", form=form, teachers=teacher_choices(),
+                           categories=COURSE_CATEGORIES,
                            is_edit=True, heading=f"ویرایش دوره: {course.course_name}",
                            submit_label="ذخیره تغییرات",
                            form_action=url_for("course_edit", course_id=course.id),
@@ -3110,12 +3801,22 @@ def schedules_list():
                     key=lambda l: l.class_start_time or "", reverse=True):
         state = rental_state(l.class_start_time, l.class_end_time, now)
         start, end = l.class_start_time or "", l.class_end_time or ""
-        rows.append({"id": l.id, "course": names.get(l.course_code, l.course_code),
-                     "code": l.course_code, "class_number": l.class_number or "—",
-                     "date": start[:10], "from": start[11:16], "to": end[11:16],
-                     "session": f"جلسه {l.session_number}" if l.session_counted and l.session_number else "پس از شروع",
-                     "state": state, "label": labels[state]})
-    return render_template("schedules_list.html", rows=rows,
+        row = {"id": l.id, "course": names.get(l.course_code, l.course_code),
+               "code": l.course_code, "class_number": l.class_number or "—",
+               "date": start[:10], "from": start[11:16], "to": end[11:16],
+               "session": f"جلسه {l.session_number}" if l.session_counted and l.session_number else "پس از شروع",
+               "state": state, "label": labels[state]}
+        # متنی که جستجو در آن انجام می‌شود
+        row["hay"] = (f"{row['course']} {row['code'] or ''} کلاس {l.class_number or ''} "
+                      f"{l.class_number or ''} {row['date']} {row['from']} {row['to']} "
+                      f"{row['session']} {row['label']}")
+        rows.append(row)
+
+    q = read_search()
+    matched = filter_rows(rows, q)
+    shown, pagination = page_rows(matched)
+    return render_template("schedules_list.html", rows=shown, q=q, pagination=pagination,
+                           total=len(rows), found=len(matched),
                            running=sum(1 for r in rows if r["state"] == "running"))
 
 
@@ -3204,19 +3905,25 @@ def finance_today():
     """گردش مالی یک روز (پیش‌فرض امروز): دریافتی‌ها (بیعانه، تسویه، اجاره‌ی کلاس) و
     پرداختی‌ها (حقوق دبیران) و مبلغ خالص."""
     today = format_jalali(*today_jalali())
-    raw = clean_digits(request.args.get("date"), 20)
-    day = today
+    raw = clean(request.args.get("date"), 40)
+    day, bad_date = today, None
     if raw:
-        parsed = parse_jalali_date(raw)
+        parsed = parse_flexible_date(raw)
         if parsed:
             day = parsed
         else:
-            flash("تاریخ نامعتبر است؛ امروز نمایش داده شد. تاریخ شمسی را مثل ۱۴۰۵/۰۷/۲۰ وارد کنید.", "error")
+            # تاریخ نامعتبر را بی‌سروصدا به «امروز» تبدیل نمی‌کنیم (امروز معمولاً خالی است و
+            # به نظر می‌رسد روزهای قبل چیزی ندارند)؛ خطا کنار فرم نشان داده می‌شود
+            bad_date = raw
 
-    payments = Payments.query.filter_by(payment_date=day).order_by(Payments.id).all()
-    rentals = Renting_out_a_class.query.filter_by(registration_date=day).order_by(
-        Renting_out_a_class.id).all()
-    salaries = TeacherPayments.query.filter_by(payment_date=day).order_by(TeacherPayments.id).all()
+    if bad_date:
+        payments, rentals, salaries = [], [], []
+    else:
+        payments = Payments.query.filter_by(payment_date=day).order_by(Payments.id).all()
+        rentals = Renting_out_a_class.query.filter_by(registration_date=day).order_by(
+            Renting_out_a_class.id).all()
+        salaries = TeacherPayments.query.filter_by(payment_date=day).order_by(
+            TeacherPayments.id).all()
 
     students = student_name_map(p.student_national_id_number for p in payments)
     teachers = teacher_name_map([r.teacher_national_id_number for r in rentals]
@@ -3248,6 +3955,8 @@ def finance_today():
     income = sum(e["amount"] for e in entries if not e["out"])
     outgo = totals.get("حقوق دبیر", 0)
     return render_template("finance_today.html", entries=entries, day=day, today=today,
+                           bad_date=bad_date, prev_day=shift_jalali_day(day, -1),
+                           next_day=shift_jalali_day(day, 1) if day < today else None,
                            deposits=totals.get("بیعانه", 0), settlements=totals.get("تسویه", 0),
                            rents=totals.get("اجاره کلاس", 0), income=income,
                            salaries=outgo, net=income - outgo)
@@ -3268,15 +3977,21 @@ def finance_debts():
         salary = c.teacher_salary or None
         paid = paid_map.get(c.course_code, 0)
         remaining = max(salary - paid, 0) if salary else None
+        teacher_name = teachers.get(c.course_instructor_national_id_number, "—")
         rows.append({"id": c.id, "code": c.course_code, "name": c.course_name,
-                     "teacher": teachers.get(c.course_instructor_national_id_number, "—"),
+                     "teacher": teacher_name,
                      "salary": salary, "paid": paid, "remaining": remaining,
-                     "ended": bool(c.end_of_course)})
+                     "ended": bool(c.end_of_course),
+                     "hay": f"{c.course_name or ''} {c.course_code or ''} {teacher_name}"})
     # ابتدا دوره‌هایی که حقوق باقی‌مانده دارند (بیشتر به کمتر)، بعد حقوق‌ثبت‌نشده‌ها، بعد تسویه‌شده‌ها
     rows.sort(key=lambda r: (0 if r["remaining"] else (1 if r["remaining"] is None else 2),
                              -(r["remaining"] or 0), -r["id"]))
+    q = read_search()
+    matched = filter_rows(rows, q)
+    shown, pagination = page_rows(matched)
     return render_template(
-        "finance_debts.html", rows=rows,
+        "finance_debts.html", rows=shown, q=q, pagination=pagination,
+        total=len(rows), found=len(matched),
         total_salary=sum(r["salary"] or 0 for r in rows),
         total_paid=sum(r["paid"] for r in rows if r["salary"]),
         total_remaining=sum(r["remaining"] or 0 for r in rows))
@@ -3305,7 +4020,7 @@ def teacher_pay(course_id):
     elif amount is None or amount < 1:
         flash("مبلغ پرداخت را به عدد و بیشتر از صفر وارد کنید.", "error")
     elif amount > remaining:
-        flash(f"مبلغ پرداخت نمی‌تواند از حقوق باقی‌مانده ({remaining:,}) بیشتر باشد.", "error")
+        flash(f"مبلغ پرداخت نمی‌تواند از حقوق باقی‌مانده ({remaining:,} تومان) بیشتر باشد.", "error")
     else:
         db.session.add(TeacherPayments(
             teacher_national_id_number=teacher_id, course_code=course.course_code,
@@ -3313,18 +4028,21 @@ def teacher_pay(course_id):
         db.session.commit()
         left = remaining - amount
         if left == 0:
-            flash(f"{amount:,} پرداخت شد و حقوق دوره «{course.course_name}» کاملاً تسویه شد.", "success")
+            flash(f"{amount:,} تومان پرداخت شد و حقوق دوره «{course.course_name}» کاملاً تسویه شد.", "success")
         else:
-            flash(f"{amount:,} از حقوق دوره «{course.course_name}» پرداخت شد؛ باقی‌مانده: {left:,}.", "success")
-    return redirect(url_for("finance_debts"))
+            flash(f"{amount:,} تومان از حقوق دوره «{course.course_name}» پرداخت شد؛ باقی‌مانده: {left:,} تومان.", "success")
+    # بعد از پرداخت به همان جستجو و صفحه‌ای برگرد که ادمین در آن بود
+    back_q = clean_text(clean(request.form.get("q"), 60), 60)
+    back_page = request.form.get("page", type=int)
+    return redirect(url_for("finance_debts", q=back_q or None,
+                            page=back_page if back_page and back_page > 1 else None))
 
 
 @app.route("/admin/finance/receivables")
 @login_required
 @role_required("admin")
 def finance_receivables():
-    """طلب‌های آموزشگاه: شهریه‌ای که دانش‌آموزان هنوز نپرداخته‌اند؛ هم به تفکیک دوره
-    و هم دانش‌آموز به دانش‌آموز."""
+    """طلب‌های آموزشگاه: شهریه‌ای که دانش‌آموزان هنوز نپرداخته‌اند، به تفکیک دوره."""
     all_links = Linking_the_student_to_the_course.query.all()
     links_by_course = {}
     for l in all_links:
@@ -3346,29 +4064,181 @@ def finance_receivables():
         rows.append({"id": course.id, "code": course.course_code, "name": course.course_name,
                      "price": course.price, "students": len(links), "expected": expected,
                      "received": received, "outstanding": outstanding, "percent": percent,
-                     "ended": bool(course.end_of_course)})
+                     "ended": bool(course.end_of_course),
+                     "hay": f"{course.course_name or ''} {course.course_code or ''}"})
 
-    debt_links = [l for l in all_links if (l.debt or 0) > 0]
-    students = student_name_map(l.student_national_id_number for l in debt_links)
-    debt_rows = []
-    for l in debt_links:
-        course = courses.get(l.course_code)
-        price = course.price if course and course.price else None
-        debt_rows.append({"name": students.get(l.student_national_id_number, "—"),
-                          "national_id": l.student_national_id_number,
-                          "course": course.course_name if course and course.course_name else l.course_code,
-                          "course_id": course.id if course else None,
-                          "price": price,
-                          "paid": (price - l.debt) if price else (l.deposit or 0),
-                          "debt": l.debt})
-    debt_rows.sort(key=lambda r: r["debt"], reverse=True)
+    # جستجو و صفحه‌بندی جدول دوره‌ها (?q= و ?page=)
+    q = read_search()
+    matched = filter_rows(rows, q)
+    shown_rows, pagination = page_rows(matched)
 
     return render_template(
-        "finance_receivables.html", rows=rows, debt_rows=debt_rows,
-        debtors=len({r["national_id"] for r in debt_rows}),
+        "finance_receivables.html", rows=shown_rows, q=q, pagination=pagination,
+        course_count=len(rows), course_found=len(matched),
         total_expected=sum(r["expected"] or 0 for r in rows),
         total_received=sum(r["received"] or 0 for r in rows),
         total_outstanding=sum(r["outstanding"] for r in rows))
+
+
+# =========================================================
+# STUDENT / PARENT PANEL (دوره‌های دانش‌آموز با بدهی و حضور و غیاب)
+# دانش‌آموز و والدین با کد ملی دانش‌آموز وارد می‌شوند و فقط اطلاعات همان دانش‌آموز را می‌بینند.
+# =========================================================
+
+def current_student():
+    if session.get("role") != "student_parent":
+        return None
+    return db.session.get(Students, session.get("user_id"))
+
+
+def student_course_rows(student):
+    """دوره‌هایی که دانش‌آموز در آن‌ها عضو است، همراه وضعیت مالی و خلاصه‌ی حضور و غیاب"""
+    national_id = student.national_id_number
+    if not national_id:
+        return []
+    links = Linking_the_student_to_the_course.query.filter_by(
+        student_national_id_number=national_id).order_by(
+        Linking_the_student_to_the_course.id).all()
+    courses = course_name_map()
+    teachers = teacher_name_map(c.course_instructor_national_id_number for c in courses.values())
+
+    attendance = {}
+    for a in Attendance.query.filter_by(student_national_id_number=national_id).all():
+        attendance.setdefault(a.course_code, []).append(a)
+
+    rows = []
+    for l in links:
+        course = courses.get(l.course_code)
+        if not course:
+            continue
+        price = course.price or None
+        debt = l.debt or 0
+        deposit = l.deposit or 0
+        records = attendance.get(l.course_code, [])
+        present = sum(1 for a in records if a.presence)
+        if course.end_of_course:
+            state = "ended"
+        elif course.active and course.course_instructor_national_id_number:
+            state = "active"
+        else:
+            state = "waiting"
+        rows.append({
+            "id": course.id, "code": course.course_code, "name": course.course_name,
+            "teacher": teachers.get(course.course_instructor_national_id_number),
+            "state": state, "session": session_label(course.number_of_session),
+            "price": price, "deposit": deposit, "debt": debt,
+            "paid": (price - debt) if price else deposit,
+            "recorded": len(records), "present": present, "absent": len(records) - present,
+        })
+    return rows
+
+
+def student_courses_page():
+    student = current_student()
+    if not student:
+        abort(403)
+    rows = student_course_rows(student)
+    return render_template("student_courses.html", rows=rows,
+                           total_debt=sum(r["debt"] for r in rows))
+
+
+@app.route("/panel/course/<int:course_id>")
+@login_required
+@role_required("student_parent")
+def student_course_detail(course_id):
+    """جزئیات یک دوره‌ی دانش‌آموز: وضعیت مالی و حضور و غیاب جلسه‌به‌جلسه (فقط دوره‌ی خودش)"""
+    student = current_student()
+    course = db.session.get(Courses, course_id)
+    if not student or not course or not student.national_id_number:
+        abort(404)
+    link = Linking_the_student_to_the_course.query.filter_by(
+        student_national_id_number=student.national_id_number,
+        course_code=course.course_code).first()
+    if not link:
+        abort(404)  # عضو این دوره نیست
+
+    records = {a.number_of_session: a for a in Attendance.query.filter_by(
+        student_national_id_number=student.national_id_number,
+        course_code=course.course_code).all()}
+    schedule = {l.session_number: l for l in Linking_the_course_to_the_class.query.filter_by(
+        course_code=course.course_code).all() if l.session_number}
+
+    last = max([course.number_of_session or 0] + list(records))
+    sessions = []
+    for n in range(1, last + 1):
+        record, planned = records.get(n), schedule.get(n)
+        sessions.append({
+            "number": n,
+            "date": planned.class_start_time[:10] if planned and planned.class_start_time else None,
+            "time": (f"{planned.class_start_time[11:16]} تا {(planned.class_end_time or '')[11:16]}"
+                     if planned and planned.class_start_time else None),
+            "class_number": planned.class_number if planned else None,
+            "status": "present" if record and record.presence else ("absent" if record else "none"),
+        })
+
+    teacher = None
+    if course.course_instructor_national_id_number:
+        names = teacher_name_map([course.course_instructor_national_id_number])
+        teacher = names.get(course.course_instructor_national_id_number)
+    price = course.price or None
+    debt = link.debt or 0
+    present = sum(1 for s in sessions if s["status"] == "present")
+    absent = sum(1 for s in sessions if s["status"] == "absent")
+    return render_template("student_course_detail.html", course=course, teacher=teacher,
+                           price=price, deposit=link.deposit or 0, debt=debt,
+                           paid=(price - debt) if price else (link.deposit or 0),
+                           sessions=sessions, present=present, absent=absent,
+                           session_text=session_label(course.number_of_session))
+
+
+def student_today_rows(student):
+    """کلاس‌های امروزِ دانش‌آموز: جلسه‌های امروزِ دوره‌هایی که در آن‌ها عضو است (فقط امروز)"""
+    national_id = student.national_id_number
+    if not national_id:
+        return []
+    enrolled = {l.course_code for l in Linking_the_student_to_the_course.query.filter_by(
+        student_national_id_number=national_id).all()}
+    if not enrolled:
+        return []
+
+    now = now_text()
+    today = format_jalali(*today_jalali())
+    courses = {code: c for code, c in course_name_map().items() if code in enrolled}
+    links = sorted((l for l in Linking_the_course_to_the_class.query.all()
+                    if l.course_code in courses and l.class_start_time
+                    and l.class_start_time[:10] == today),
+                   key=lambda l: l.class_start_time)
+    if not links:
+        return []
+
+    teachers = teacher_name_map(c.course_instructor_national_id_number for c in courses.values())
+    attendance = {(a.course_code, a.number_of_session): a for a in Attendance.query.filter_by(
+        student_national_id_number=national_id).all()}
+
+    labels = {"upcoming": "در پیش‌رو", "running": "در حال برگزاری", "ended": "تمام شده"}
+    rows = []
+    for l in links:
+        course = courses[l.course_code]
+        state = rental_state(l.class_start_time, l.class_end_time, now)
+        record = attendance.get((l.course_code, l.session_number)) if l.session_number else None
+        rows.append({
+            "course": course.course_name, "code": l.course_code,
+            "teacher": teachers.get(course.course_instructor_national_id_number),
+            "class_number": l.class_number or "—",
+            "from": l.class_start_time[11:16], "to": (l.class_end_time or "")[11:16],
+            "session": f"جلسه {l.session_number}" if l.session_number else "جلسه‌ی بعدی",
+            "state": state, "label": labels[state],
+            "attendance": None if not record else ("present" if record.presence else "absent"),
+        })
+    return rows
+
+
+def student_today_page():
+    student = current_student()
+    if not student:
+        abort(403)
+    return render_template("student_today.html", rows=student_today_rows(student),
+                           today=format_jalali(*today_jalali()))
 
 
 # =========================================================
@@ -3436,7 +4306,7 @@ def teacher_today_rows(teacher):
 def teacher_today():
     """کلاس‌های امروز دبیر (برای دانش‌آموز فعلاً صفحه‌ی نگه‌دارنده)"""
     if session.get("role") != "teacher":
-        return panel_page("classes", "today")
+        return student_today_page()
     teacher = current_teacher()
     if not teacher:
         session.clear()
@@ -3446,13 +4316,17 @@ def teacher_today():
                            today=format_jalali(*today_jalali()))
 
 
+TEACHER_COURSES_PER_PAGE = 10  # تعداد دوره در هر صفحه‌ی «کل کلاس‌های شما»
+
+
 @app.route("/panel/classes/all")
 @login_required
 @role_required("teacher", "student_parent")
 def teacher_courses():
-    """کل دوره‌های دبیر (فعال و تمام‌شده) با پیشرفت و جلسه‌ی بعدی (برای دانش‌آموز فعلاً نگه‌دارنده)"""
+    """کل دوره‌های دبیر (فعال، در انتظار و تمام‌شده) با جستجو و صفحه‌بندی؛
+    برای دانش‌آموز صفحه‌ی دوره‌های خودش نشان داده می‌شود."""
     if session.get("role") != "teacher":
-        return panel_page("classes", "all")
+        return student_courses_page()
     teacher = current_teacher()
     if not teacher:
         session.clear()
@@ -3460,36 +4334,135 @@ def teacher_courses():
         return redirect(url_for("login"))
 
     national_id = teacher.national_id_number
-    courses = (Courses.query.filter_by(course_instructor_national_id_number=national_id)
-               .order_by(Courses.id.desc()).all()) if national_id else []
-    codes = {c.course_code for c in courses}
+    q = clean_text(clean(request.args.get("q"), 60), 60)
 
-    # شماره‌ی جلسه‌هایی که برایشان حضور و غیاب ثبت شده: {کد دوره: {شماره‌ی جلسه}}
-    recorded = {}
-    for a in Attendance.query.all():
-        if a.course_code in codes and a.number_of_session:
-            recorded.setdefault(a.course_code, set()).add(a.number_of_session)
+    # فقط دوره‌های خودِ دبیر (بدون کد ملی هیچ دوره‌ای نشان داده نمی‌شود)
+    mine = (Courses.query.filter(Courses.course_instructor_national_id_number == national_id)
+            if national_id else Courses.query.filter(false()))
 
-    now = now_text()
+    # آمار کلی (مستقل از جستجو)
+    stats = {
+        "all": mine.count(),
+        "ended": mine.filter(Courses.end_of_course.is_(True)).count(),
+        "active": mine.filter(Courses.end_of_course.is_not(True),
+                              Courses.active.is_(True)).count(),
+    }
+
+    # هر کلمه‌ی جستجو باید در نام، کد یا تاریخ شروع دوره پیدا شود
+    query = mine
+    for term in q.split():
+        like = "%" + escape_like(term) + "%"
+        query = query.filter(or_(
+            Courses.course_name.ilike(like, escape="\\"),
+            Courses.course_code.ilike(like, escape="\\"),
+            Courses.category.ilike(like, escape="\\"),
+            Courses.activation_date.ilike(like, escape="\\"),
+        ))
+
+    total = query.count()
+    pages = max(1, math.ceil(total / TEACHER_COURSES_PER_PAGE))
+    page = min(max(request.args.get("page", 1, type=int), 1), pages)
+    pagination = query.order_by(Courses.id.desc()).paginate(
+        page=page, per_page=TEACHER_COURSES_PER_PAGE, error_out=False)
+    courses = pagination.items
+    codes = {c.course_code for c in courses if c.course_code}
+
+    # فقط برای دوره‌های همین صفحه: جلسه‌های ثبت‌شده‌ی حضور و غیاب و جلسه‌ی بعدی
+    recorded = {}   # {کد دوره: {شماره‌ی جلسه}}
     next_session = {}
-    for l in sorted(Linking_the_course_to_the_class.query.all(), key=lambda l: l.class_start_time or ""):
-        if (l.course_code in codes and l.class_start_time and l.class_end_time
-                and l.class_end_time > now and l.course_code not in next_session):
-            next_session[l.course_code] = (f"{l.class_start_time[:10]} | {l.class_start_time[11:16]} تا "
-                                           f"{l.class_end_time[11:16]} | کلاس {l.class_number}")
+    if codes:
+        for a in Attendance.query.filter(Attendance.course_code.in_(codes)).all():
+            if a.number_of_session:
+                recorded.setdefault(a.course_code, set()).add(a.number_of_session)
+
+        link_model = Linking_the_course_to_the_class
+        upcoming = (link_model.query
+                    .filter(link_model.course_code.in_(codes),
+                            link_model.class_end_time > now_text())
+                    .order_by(link_model.class_start_time).all())
+        for l in upcoming:
+            if l.class_start_time and l.course_code not in next_session:
+                next_session[l.course_code] = (
+                    f"{l.class_start_time[:10]} | {l.class_start_time[11:16]} تا "
+                    f"{l.class_end_time[11:16]} | کلاس {l.class_number}")
 
     rows = []
     for c in courses:
-        rows.append({"code": c.course_code, "name": c.course_name,
-                     "state": "ended" if c.end_of_course else "active",
-                     "session": session_label(c.number_of_session),
-                     "students": c.number_of_students or 0,
-                     "start": c.activation_date,
-                     "recorded": len(recorded.get(c.course_code, ())),
-                     "held": c.number_of_session or 0,
-                     "next": next_session.get(c.course_code)})
-    return render_template("teacher_courses.html", rows=rows,
-                           total=len(rows), active=sum(1 for r in rows if r["state"] == "active"))
+        if c.end_of_course:
+            state = "ended"
+        elif c.active:
+            state = "active"
+        else:
+            state = "waiting"
+        rows.append({
+            "code": c.course_code, "name": c.course_name, "state": state,
+            "category": c.category or DEFAULT_COURSE_CATEGORY,
+            "session": session_label(c.number_of_session),
+            "students": c.number_of_students or 0,
+            "start": c.activation_date,
+            "recorded": len(recorded.get(c.course_code, ())),
+            "held": c.number_of_session or 0,
+            "next": next_session.get(c.course_code),
+        })
+
+    return render_template("teacher_courses.html", rows=rows, stats=stats, q=q,
+                           total=total, pagination=pagination, pages=pages)
+
+
+@app.route("/panel/finance/receivables")
+@login_required
+@role_required("teacher")
+def teacher_receivables():
+    """طلب‌های دبیر: حقوق هر دوره‌ی خودش، مبلغ دریافت‌شده و باقی‌مانده (همان حساب «بدهی‌ها» در پنل
+    ادمین)، همراه با تاریخ و مبلغ هر قسطی که به خود دبیر پرداخت شده؛ با جستجو و صفحه‌بندی."""
+    teacher = current_teacher()
+    if not teacher:
+        session.clear()
+        flash("دبیران متفرقه به سامانه دسترسی ندارند.", "error")
+        return redirect(url_for("login"))
+
+    national_id = teacher.national_id_number
+    courses = (Courses.query.filter_by(course_instructor_national_id_number=national_id).all()
+               if national_id else [])
+    codes = {c.course_code for c in courses if c.course_code}
+
+    # مجموع پرداخت‌های هر دوره (مثل ادمین) و قسط‌هایی که به خود این دبیر داده شده
+    paid_total, my_payments = {}, {}
+    if codes:
+        for p in (TeacherPayments.query.filter(TeacherPayments.course_code.in_(codes))
+                  .order_by(TeacherPayments.id.desc()).all()):
+            paid_total[p.course_code] = paid_total.get(p.course_code, 0) + (p.amount or 0)
+            if p.teacher_national_id_number == national_id:
+                my_payments.setdefault(p.course_code, []).append(
+                    {"date": p.payment_date or "—", "amount": p.amount or 0})
+
+    rows = []
+    for c in courses:
+        salary = c.teacher_salary or None
+        paid = paid_total.get(c.course_code, 0)
+        rows.append({
+            "id": c.id, "code": c.course_code, "name": c.course_name,
+            "ended": bool(c.end_of_course),
+            "salary": salary, "paid": paid,
+            "remaining": max(salary - paid, 0) if salary else None,
+            "payments": my_payments.get(c.course_code, []),
+            "hay": f"{c.course_name or ''} {c.course_code or ''}",
+        })
+    # ابتدا دوره‌هایی که طلب باقی‌مانده دارند (بیشتر به کمتر)، بعد حقوق‌ثبت‌نشده‌ها، بعد تسویه‌شده‌ها
+    rows.sort(key=lambda r: (0 if r["remaining"] else (1 if r["remaining"] is None else 2),
+                             -(r["remaining"] or 0), -r["id"]))
+
+    stats = {
+        "salary": sum(r["salary"] or 0 for r in rows),
+        "paid": sum(r["paid"] for r in rows if r["salary"]),
+        "remaining": sum(r["remaining"] or 0 for r in rows),
+    }
+
+    q = read_search()
+    matched = filter_rows(rows, q)
+    shown, pagination = page_rows(matched)
+    return render_template("teacher_receivables.html", rows=shown, q=q, stats=stats,
+                           pagination=pagination, total=len(rows), found=len(matched))
 
 
 @app.route("/panel/attendance/<int:link_id>", methods=["GET", "POST"])
@@ -3576,6 +4549,16 @@ def panel_page(section, item):
 def bad_request(_e):
     return render_template("error.html", code=400,
                            message="درخواست نامعتبر بود. صفحه را دوباره بارگذاری کنید."), 400
+
+
+@app.errorhandler(500)
+def server_error(_e):
+    """خطای داخلی: صفحه‌ی فارسی نشان داده می‌شود؛ جزئیات خطا در ترمینال برنامه چاپ می‌شود."""
+    db.session.rollback()
+    return render_template("error.html", code=500,
+                           message=("خطای داخلی سرور. اگر بعد از به‌روزرسانی فایل‌ها پیش آمده، "
+                                    "یک بار «python fix_database.py» را اجرا کنید؛ "
+                                    "در غیر این صورت متن خطا را از ترمینال برنامه بفرستید.")), 500
 
 
 @app.errorhandler(413)

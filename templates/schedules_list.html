@@ -1,11 +1,14 @@
 {% extends "base.html" %}
+{% from "_list_macros.html" import search_bar, pager %}
 {% block title %}لیست دوره‌ها در کلاس‌ها | پژوهش‌سرا{% endblock %}
 
 {% block content %}
 <section class="card wide">
     <p class="crumb">مدیریت کلاس‌ها</p>
     <h1>لیست دوره‌ها در کلاس‌ها</h1>
-    <p class="lead">تعداد جلسه‌های برنامه‌ریزی‌شده: {{ rows|length }} | در حال برگزاری: {{ running }}</p>
+    <p class="lead">تعداد جلسه‌های برنامه‌ریزی‌شده: {{ total }} | در حال برگزاری: {{ running }}{% if q %} | نتیجه جستجو: {{ found }}{% endif %}</p>
+
+    {{ search_bar('schedules_list', q, 'نام دوره، کد دوره، کلاس، تاریخ یا وضعیت') }}
 
     <div class="table-wrap">
         <table class="table wrap">
@@ -25,7 +28,7 @@
                 {% for r in rows %}
                 <tr>
                     <td>{{ r.course }} <small class="loan-detail" dir="ltr">{{ r.code }}</small></td>
-                    <td dir="ltr">{{ r.class_number }}</td>
+                    <td dir="ltr">{{ r.class_number }}کلاس</td>
                     <td dir="ltr">{{ r.date or '—' }}</td>
                     <td dir="ltr">{{ r.from or '—' }}</td>
                     <td dir="ltr">{{ r.to or '—' }}</td>
@@ -44,11 +47,13 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="8" class="empty">هنوز جلسه‌ای برنامه‌ریزی نشده است.</td></tr>
+                <tr><td colspan="8" class="empty">{% if q %}جلسه‌ای با این جستجو پیدا نشد.{% else %}هنوز جلسه‌ای برنامه‌ریزی نشده است.{% endif %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+    {{ pager('schedules_list', pagination, q) }}
 
     <div class="actions">
         <a class="btn primary" href="{{ url_for('schedule_add') }}">برنامه‌ریزی جلسه</a>

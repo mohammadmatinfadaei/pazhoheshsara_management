@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ course.course_name }} | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">کلاس‌ها</p>
+    <h1>{{ course.course_name }}</h1>
+    <p class="lead">
+        کد دوره: <span dir="ltr">{{ course.course_code }}</span> |
+        مدرس: {{ teacher or 'ثبت نشده' }} |
+        {{ session_text }}{% if course.end_of_course %} | <strong>دوره تمام شده</strong>{% endif %}
+    </p>
+
+    <div class="stats">
+        <div class="stat"><span>قیمت دوره</span><strong>{% if price %}{{ price|money }}تومان{% else %}—{% endif %}</strong></div>
+        <div class="stat"><span>پرداخت‌شده (بیعانه و تسویه‌ها)</span><strong>{{ paid|money }}تومان</strong></div>
+        <div class="stat total"><span>بدهی باقی‌مانده</span><strong class="{% if debt %}text-danger{% endif %}">{{ debt|money }}تومان</strong></div>
+        <div class="stat"><span>حضور</span><strong>{{ present }} از {{ present + absent }}</strong></div>
+        <div class="stat"><span>غیبت</span><strong class="{% if absent %}text-danger{% endif %}">{{ absent }}</strong></div>
+    </div>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">جلسه</th>
+                    <th scope="col">تاریخ</th>
+                    <th scope="col">ساعت</th>
+                    <th scope="col">وضعیت</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sessions %}
+                <tr>
+                    <td>جلسه {{ s.number }}</td>
+                    <td dir="ltr">{{ s.date or '—' }}</td>
+                    <td  class="time-cell">{{ s.time or '—' }}</td>
+                    <td>
+                        {% if s.status == 'present' %}<span class="badge-ok">حاضر</span>
+                        {% elif s.status == 'absent' %}<span class="badge-overdue">غایب</span>
+                        {% else %}<span class="badge-off">ثبت نشده</span>{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="empty">هنوز جلسه‌ای برگزار نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions">
+        <a class="btn ghost" href="{{ url_for('dashboard') }}">بازگشت به دوره‌ها</a>
+    </div>
+</section>
+{% endblock %}

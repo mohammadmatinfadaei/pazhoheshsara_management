@@ -4,24 +4,32 @@
 {% block content %}
 <section class="card wide">
     <p class="crumb">امور مالی</p>
-    <h1>گردش مالی {% if day == today %}امروز{% else %}روز {{ day }}{% endif %}</h1>
+    <h1>گردش مالی {% if bad_date %}{% elif day == today %}امروز{% else %}روز {{ day }}{% endif %}</h1>
+    {% if bad_date %}
+    <div class="flash error" role="alert">تاریخ «<span dir="ltr">{{ bad_date }}</span>» را متوجه نشدم. تاریخ شمسی را مثل <span dir="ltr">1405/07/20</span> وارد کنید، یا از دکمه‌های «روز قبل» و «امروز» استفاده کنید.</div>
+    {% else %}
     <p class="lead">تاریخ: <span dir="ltr">{{ day }}</span> | دریافتی‌ها: بیعانه‌ها، تسویه‌ها و اجاره‌ی کلاس‌ها | پرداختی‌ها: حقوق دبیران</p>
+    {% endif %}
 
+    {% if not bad_date %}
     <div class="stats">
-        <div class="stat"><span>بیعانه‌ها</span><strong>{{ deposits|money }}</strong></div>
-        <div class="stat"><span>تسویه‌ها</span><strong>{{ settlements|money }}</strong></div>
-        <div class="stat"><span>اجاره‌ی کلاس‌ها</span><strong>{{ rents|money }}</strong></div>
-        <div class="stat"><span>جمع دریافتی</span><strong>{{ income|money }}</strong></div>
-        <div class="stat"><span>پرداخت حقوق دبیران</span><strong class="{% if salaries %}text-danger{% endif %}">{{ salaries|money }}</strong></div>
-        <div class="stat total"><span>خالص (دریافتی - پرداختی)</span><strong class="{% if net < 0 %}text-danger{% endif %}">{{ net|money }}</strong></div>
+        <div class="stat"><span>بیعانه‌ها</span><strong>{{ deposits|money }} تومان</strong></div>
+        <div class="stat"><span>تسویه‌ها</span><strong>{{ settlements|money }} تومان</strong></div>
+        <div class="stat"><span>اجاره‌ی کلاس‌ها</span><strong>{{ rents|money }} تومان</strong></div>
+        <div class="stat"><span>جمع دریافتی</span><strong>{{ income|money }} تومان</strong></div>
+        <div class="stat"><span>پرداخت حقوق دبیران</span><strong class="{% if salaries %}text-danger{% endif %}">{{ salaries|money }} تومان</strong></div>
+        <div class="stat total"><span>خالص (دریافتی - پرداختی)</span><strong class="{% if net < 0 %}text-danger{% endif %}">{{ net|money }} تومان</strong></div>
     </div>
+    {% endif %}
 
     <form class="toolbar" method="get" action="{{ url_for('finance_today') }}">
+        <a class="btn ghost small" href="{{ url_for('finance_today', date=prev_day) }}">روز قبل</a>
+        {% if next_day %}<a class="btn ghost small" href="{{ url_for('finance_today', date=next_day) }}">روز بعد</a>{% endif %}
         <label class="sr-only" for="date">تاریخ</label>
-        <input id="date" name="date" type="text" dir="ltr" placeholder="1405/07/20" maxlength="10"
-               value="{{ day if day != today else '' }}">
+        <input id="date" name="date" type="text" dir="ltr" placeholder="1405/07/20" maxlength="20"
+               value="{{ bad_date or (day if day != today else '') }}">
         <button class="btn primary small" type="submit">نمایش این روز</button>
-        {% if day != today %}<a class="btn ghost small" href="{{ url_for('finance_today') }}">امروز</a>{% endif %}
+        {% if bad_date or day != today %}<a class="btn ghost small" href="{{ url_for('finance_today') }}">امروز</a>{% endif %}
     </form>
 
     <div class="table-wrap">
@@ -45,10 +53,10 @@
                     </td>
                     <td>{{ e.who }}</td>
                     <td>{{ e.what }}</td>
-                    <td>{% if e.out %}<span class="text-danger">- {{ e.amount|money }}</span>{% else %}{{ e.amount|money }}{% endif %}</td>
+                    <td>{% if e.out %}<span class="text-danger">- {{ e.amount|money }} تومان</span>{% else %}{{ e.amount|money }} تومان{% endif %}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="4" class="empty">در این روز تراکنشی ثبت نشده است.</td></tr>
+                <tr><td colspan="4" class="empty">{% if bad_date %}با تاریخ درست، تراکنش‌های آن روز اینجا نمایش داده می‌شود.{% elif day == today %}امروز هنوز تراکنشی ثبت نشده است؛ برای دیدن روزهای قبل «روز قبل» را بزنید.{% else %}در روز <span dir="ltr">{{ day }}</span> تراکنشی ثبت نشده است.{% endif %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>

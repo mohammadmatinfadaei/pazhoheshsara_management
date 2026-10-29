@@ -20,7 +20,7 @@
             <tbody>
                 {% for c in classes %}
                 <tr>
-                    <td dir="ltr">{{ c.class_number }}</td>
+                    <td dir="ltr">کلاس{{ c.class_number }}</td>
                     <td>{% if c.floor_number is none %}—{% else %}{{ c.floor_number }}{% endif %}</td>
                     <td>
                         {% if c.status %}

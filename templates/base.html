@@ -39,7 +39,6 @@
 
                 <div class="nav-actions">
                     {% if session.get('user_id') %}
-                        <a href="{{ url_for('dashboard') }}">پنل من</a>
                         <form method="post" action="{{ url_for('logout') }}" class="inline-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="nav-btn">خروج</button>

@@ -1,0 +1,48 @@
+<div class="stats">
+    <div class="stat"><span>تعداد دوره‌ها</span><strong>{{ rows|length }}</strong></div>
+    <div class="stat total"><span>مجموع بدهی باقی‌مانده</span><strong class="{% if total_debt %}text-danger{% endif %}">{{ total_debt|money }}تومان</strong></div>
+</div>
+
+<div class="table-wrap">
+    <table class="table wrap">
+        <thead>
+            <tr>
+                <th scope="col">دوره</th>
+                <th scope="col">مدرس</th>
+                <th scope="col">وضعیت</th>
+                <th scope="col">جلسه‌ی فعلی</th>
+                <th scope="col">قیمت</th>
+                <th scope="col">پرداخت‌شده</th>
+                <th scope="col">بدهی</th>
+                <th scope="col">حضور و غیاب</th>
+                <th scope="col">جزئیات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td>{{ r.name }} </td>
+                <td>{{ r.teacher or '—' }}</td>
+                <td>
+                    {% if r.state == 'active' %}<span class="badge-ok">فعال</span>
+                    {% elif r.state == 'ended' %}<span class="badge-off">دوره تمام شده</span>
+                    {% else %}<span class="badge-loaned">منتظر شروع</span>{% endif %}
+                </td>
+                <td>{{ r.session }}</td>
+                <td>{% if r.price %}{{ r.price|money }}تومان{% else %}—{% endif %}</td>
+                <td>{{ r.paid|money }}تومان</td>
+                <td>{% if r.debt %}<strong class="text-danger">{{ r.debt|money }}تومان</strong>{% else %}<span class="badge-ok">تسویه شده</span>{% endif %}</td>
+                <td>
+                    {% if r.recorded %}
+                        {{ r.present }} حاضر | {{ r.absent }} غایب
+                        <small class="loan-detail">از {{ r.recorded }} جلسه‌ی ثبت‌شده</small>
+                    {% else %}<span class="loan-detail">هنوز ثبت نشده</span>{% endif %}
+                </td>
+                <td><a class="btn ghost small" href="{{ url_for('student_course_detail', course_id=r.id) }}">جلسه‌ها</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="empty">فرزند شما هنوز در هیچ دوره‌ای ثبت‌نام نشده است.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

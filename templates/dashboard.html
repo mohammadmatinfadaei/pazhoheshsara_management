@@ -2,7 +2,7 @@
 {% block title %}پنل من | پژوهش‌سرا{% endblock %}
 
 {% block content %}
-<section class="card{% if role == 'teacher' %} wide{% endif %}">
+<section class="card{% if role in ('teacher', 'student_parent') %} wide{% endif %}">
     <h1>سلام {{ session.get('name') or 'کاربر گرامی' }}</h1>
 
     {% if role == 'admin' %}
@@ -11,7 +11,9 @@
         <p class="lead">کلاس‌های امروز شما ({{ today }}). حضور و غیاب را فقط وقتی کلاس فعال (در حال برگزاری) است می‌توانید ثبت کنید.</p>
         {% include "_teacher_today.html" %}
     {% elif role == 'student_parent' %}
-        <p class="lead">به پنل دانش‌آموز و والدین خوش آمدید. از منوی بالا بخش مورد نظر را انتخاب کنید.</p>
+        <p class="lead">دوره‌های فرزند شما، با وضعیت بدهی و حضور و غیاب.</p>
+        {% set total_debt = rows|sum(attribute='debt') %}
+        {% include "_student_courses.html" %}
     {% endif %}
 </section>
 {% endblock %}

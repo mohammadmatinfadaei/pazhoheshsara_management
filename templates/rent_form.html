@@ -34,7 +34,7 @@
             </div>
 
             <div class="field">
-                <label for="date">تاریخ (شمسی) <span class="req" aria-hidden="true">*</span></label>
+                <label for="date">تاریخ  <span class="req" aria-hidden="true">*</span></label>
                 <input id="date" name="date" type="text" required dir="ltr" placeholder="1405/07/20"
                        value="{{ form.get('date') or today }}">
                 <small>پیش‌فرض امروز است.</small>
@@ -54,14 +54,21 @@
             </div>
 
             <div class="field">
-                <label for="amount">مبلغ اجاره‌ی دریافتی <span class="req" aria-hidden="true">*</span></label>
+                <label for="amount">مبلغ اجاره‌ی دریافتی (تومان)<span class="req" aria-hidden="true">*</span></label>
                 <input id="amount" name="amount" type="text" inputmode="numeric" required dir="ltr"
                        value="{{ form.get('amount') or '' }}">
                 <small>به عدد؛ مثلاً 300,000</small>
             </div>
         </div>
 
-        {% if bookings %}
+     
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ثبت اجاره</button>
+            <a class="btn ghost" href="{{ url_for('rentals_list') }}">لیست اجاره های متفرقه</a>
+        </div>
+<br><br>
+           {% if bookings %}
         <div class="note-box">
             <strong>رزروهای ثبت‌شده‌ی پیش‌رو (برای جلوگیری از تداخل):</strong>
             <ul class="booking-list">
@@ -73,11 +80,6 @@
             </ul>
         </div>
         {% endif %}
-
-        <div class="actions">
-            <button class="btn primary" type="submit">ثبت اجاره</button>
-            <a class="btn ghost" href="{{ url_for('rentals_list') }}">لیست اجاره‌ها</a>
-        </div>
     </form>
 </section>
 {% endblock %}

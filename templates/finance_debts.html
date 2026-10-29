@@ -1,17 +1,21 @@
 {% extends "base.html" %}
+{% from "_list_macros.html" import search_bar, pager %}
 {% block title %}بدهی‌ها (حقوق دبیران) | پژوهش‌سرا{% endblock %}
 
 {% block content %}
-<section class="card wide">
+<section class="card wide xwide">
     <p class="crumb">امور مالی</p>
     <h1>بدهی‌های آموزشگاه: حقوق دبیران</h1>
     <p class="lead">هر دوره یک حقوق دارد و مدرس دوره تا پرداخت کامل آن طلبکار است. حقوق را می‌توانید در چند قسط پرداخت کنید؛ لازم نیست یک‌جا باشد.</p>
 
     <div class="stats">
-        <div class="stat"><span>مجموع حقوق دوره‌ها</span><strong>{{ total_salary|money }}</strong></div>
-        <div class="stat"><span>پرداخت‌شده</span><strong>{{ total_paid|money }}</strong></div>
-        <div class="stat total"><span>بدهی باقی‌مانده</span><strong class="{% if total_remaining %}text-danger{% endif %}">{{ total_remaining|money }}</strong></div>
+        <div class="stat"><span>مجموع حقوق دوره‌ها</span><strong>{{ total_salary|money }} تومان</strong></div>
+        <div class="stat"><span>پرداخت‌شده</span><strong>{{ total_paid|money }} تومان</strong></div>
+        <div class="stat total"><span>بدهی باقی‌مانده</span><strong class="{% if total_remaining %}text-danger{% endif %}">{{ total_remaining|money }} تومان</strong></div>
     </div>
+
+    {{ search_bar('finance_debts', q, 'نام دوره، کد دوره یا نام مدرس') }}
+    {% if q %}<p class="lead">نتیجه جستجو: {{ found }} از {{ total }} دوره</p>{% endif %}
 
     <div class="table-wrap">
         <table class="table wrap">
@@ -30,18 +34,23 @@
                 <tr>
                     <td>{{ r.name }} <small class="loan-detail" dir="ltr">{{ r.code }}{% if r.ended %} — دوره تمام شده{% endif %}</small></td>
                     <td>{{ r.teacher }}</td>
-                    <td>{% if r.salary %}{{ r.salary|money }}{% else %}<span class="text-danger">ثبت نشده</span>{% endif %}</td>
-                    <td>{% if r.salary %}{{ r.paid|money }}{% else %}—{% endif %}</td>
-                    <td>{% if r.remaining is none %}—{% elif r.remaining %}<strong class="text-danger">{{ r.remaining|money }}</strong>{% else %}0{% endif %}</td>
+                    <td>{% if r.salary %}{{ r.salary|money }} تومان{% else %}<span class="text-danger">ثبت نشده</span>{% endif %}</td>
+                    <td>{% if r.salary %}{{ r.paid|money }} تومان{% else %}—{% endif %}</td>
+                    <td>{% if r.remaining is none %}—{% elif r.remaining %}<strong class="text-danger">{{ r.remaining|money }} تومان</strong>{% else %}0 تومان{% endif %}</td>
                     <td>
                         {% if r.remaining is none %}
                             <a class="btn ghost small" href="{{ url_for('course_edit', course_id=r.id) }}">ثبت حقوق دوره</a>
                         {% elif r.remaining %}
                             <form method="post" action="{{ url_for('teacher_pay', course_id=r.id) }}" class="pay-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="q" value="{{ q }}">
+                                <input type="hidden" name="page" value="{{ pagination.page }}">
                                 <label class="sr-only" for="pay-{{ r.id }}">مبلغ پرداخت</label>
-                                <input id="pay-{{ r.id }}" name="amount" type="text" inputmode="numeric" dir="ltr"
-                                       placeholder="حداکثر {{ r.remaining|money }}" required>
+                                <span class="money-field">
+                                    <input id="pay-{{ r.id }}" name="amount" type="text" inputmode="numeric" dir="ltr"
+                                           placeholder="حداکثر {{ r.remaining|money }}" required>
+                                    <span class="money-unit">تومان</span>
+                                </span>
                                 <button class="btn primary small" type="submit">پرداخت</button>
                             </form>
                         {% else %}
@@ -50,10 +59,12 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" class="empty">هنوز دوره‌ای با مدرس ثبت‌شده وجود ندارد.</td></tr>
+                <tr><td colspan="6" class="empty">{% if q %}دوره‌ای با این جستجو پیدا نشد.{% else %}هنوز دوره‌ای با مدرس ثبت‌شده وجود ندارد.{% endif %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+    {{ pager('finance_debts', pagination, q) }}
 </section>
 {% endblock %}

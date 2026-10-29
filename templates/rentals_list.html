@@ -1,11 +1,14 @@
 {% extends "base.html" %}
+{% from "_list_macros.html" import search_bar, pager %}
 {% block title %}لیست اجاره‌ها | پژوهش‌سرا{% endblock %}
 
 {% block content %}
 <section class="card wide">
     <p class="crumb">مدیریت کلاس‌ها</p>
-    <h1>لیست اجاره‌ی کلاس‌ها</h1>
-    <p class="lead">تعداد اجاره‌ها: {{ rows|length }} | در حال برگزاری: {{ running }} | مجموع مبلغ دریافتی: {{ total|money }}</p>
+    <h1>لیست اجاره های کلاس های متفرقه</h1>
+    <p class="lead">تعداد اجاره‌ها: {{ count_all }} | در حال برگزاری: {{ running }} | مجموع مبلغ دریافتی: {{ total|money }} تومان{% if q %} | نتیجه جستجو: {{ found }}{% endif %}</p>
+
+    {{ search_bar('rentals_list', q, 'نام دبیر، کلاس، تاریخ یا وضعیت') }}
 
     <div class="table-wrap">
         <table class="table wrap">
@@ -24,12 +27,12 @@
             <tbody>
                 {% for r in rows %}
                 <tr>
-                    <td dir="ltr">{{ r.class_number }}</td>
+                    <td dir="ltr">{{ r.class_number }}کلاس</td>
                     <td>{{ r.teacher }}</td>
                     <td dir="ltr">{{ r.date or '—' }}</td>
                     <td dir="ltr">{{ r.from or '—' }}</td>
                     <td dir="ltr">{{ r.to or '—' }}</td>
-                    <td>{{ r.amount|money }}</td>
+                    <td>{{ r.amount|money }}تومان</td>
                     <td>
                         {% if r.state == 'running' %}
                             <span class="badge-ok">{{ r.label }}</span>
@@ -44,11 +47,13 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="8" class="empty">هنوز اجاره‌ای ثبت نشده است.</td></tr>
+                <tr><td colspan="8" class="empty">{% if q %}اجاره‌ای با این جستجو پیدا نشد.{% else %}هنوز اجاره‌ای ثبت نشده است.{% endif %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+    {{ pager('rentals_list', pagination, q) }}
 
     <div class="actions">
         <a class="btn primary" href="{{ url_for('rent_add') }}">اجاره‌ی کلاس</a>

@@ -18,6 +18,16 @@
             </div>
 
             <div class="field">
+                <label for="category">دسته‌بندی <span class="req" aria-hidden="true">*</span></label>
+                <select id="category" name="category" required>
+                    <option value="">انتخاب کنید</option>
+                    {% for c in categories %}
+                    <option value="{{ c }}" {% if form.get('category') == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="field">
                 <label for="course_code">کد دوره {% if not is_edit %}<span class="req" aria-hidden="true">*</span>{% endif %}</label>
                 {% if is_edit %}
                     <input id="course_code" type="text" dir="ltr" value="{{ form.get('course_code') or '' }}" disabled>
@@ -30,14 +40,14 @@
             </div>
 
             <div class="field">
-                <label for="price">قیمت دوره برای هر دانش‌آموز <span class="req" aria-hidden="true">*</span></label>
+                <label for="price">قیمت دوره برای هر دانش‌آموز(تومان) <span class="req" aria-hidden="true">*</span></label>
                 <input id="price" name="price" type="text" inputmode="numeric" required dir="ltr"
                        value="{{ form.get('price') or '' }}">
-                <small>به عدد؛ مثلاً 2,500,000. بیعانه از همین مبلغ کم می‌شود.</small>
+                <small>به عدد؛ مثلاً500,000. بیعانه از همین مبلغ کم می‌شود.</small>
             </div>
 
             <div class="field">
-                <label for="teacher_salary">حقوق مدرس برای این دوره <span class="req" aria-hidden="true">*</span></label>
+                <label for="teacher_salary">حقوق مدرس برای این دوره(تومان)<span class="req" aria-hidden="true">*</span></label>
                 <input id="teacher_salary" name="teacher_salary" type="text" inputmode="numeric" required dir="ltr"
                        value="{{ form.get('teacher_salary') or '' }}">
                 <small>حقوق کل دوره، به عدد؛ در «بدهی‌ها»ی امور مالی در چند قسط پرداخت می‌شود.</small>

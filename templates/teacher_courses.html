@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}کل کلاس‌های شما | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">کلاس‌ها</p>
+    <h1>کل کلاس‌های شما</h1>
+    <p class="lead">
+        کل دوره‌ها: {{ stats.all }} | فعال: {{ stats.active }} | تمام‌شده: {{ stats.ended }}
+        {% if q %}<br>نتیجه جستجو: {{ total }} دوره{% endif %}
+    </p>
+
+    <form class="toolbar" method="get" action="{{ url_for('teacher_courses') }}" role="search">
+        <label class="sr-only" for="q">جستجو</label>
+        <input id="q" name="q" type="search" value="{{ q }}" maxlength="60"
+               placeholder="نام دوره، کد دوره، دسته‌بندی یا تاریخ شروع">
+        <button class="btn primary small" type="submit">جستجو</button>
+        {% if q %}
+        <a class="btn ghost small" href="{{ url_for('teacher_courses') }}">پاک کردن</a>
+        {% endif %}
+    </form>
+
+    <div class="table-wrap">
+        <table class="table wrap">
+            <thead>
+                <tr>
+                    <th scope="col">دوره</th>
+                    <th scope="col">دسته‌بندی</th>
+                    <th scope="col">وضعیت</th>
+                    <th scope="col">تاریخ شروع</th>
+                    <th scope="col">دانش‌آموزان</th>
+                    <th scope="col">پیشرفت</th>
+                    <th scope="col">حضور و غیاب ثبت‌شده</th>
+                    <th scope="col">جلسه‌ی بعدی</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ r.name }} <small class="loan-detail" dir="ltr">{{ r.code or '—' }}</small></td>
+                    <td>{{ r.category }}</td>
+                    <td>
+                        {% if r.state == 'active' %}<span class="badge-ok">فعال</span>
+                        {% elif r.state == 'waiting' %}<span class="badge-loaned">در انتظار شروع</span>
+                        {% else %}<span class="badge-off">تمام‌شده</span>{% endif %}
+                    </td>
+                    <td dir="ltr">{{ r.start or '—' }}</td>
+                    <td>{{ r.students }}</td>
+                    <td>{{ r.session }}</td>
+                    <td>
+                        {% if r.held %}{{ r.recorded }} از {{ r.held }} جلسه{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if r.next %}<span dir="ltr">{{ r.next }}</span>
+                        {% elif r.state == 'ended' %}—
+                        {% else %}<small class="loan-detail">زمان‌بندی نشده</small>{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="empty">
+                        {% if q %}دوره‌ای با این جستجو پیدا نشد.{% else %}هنوز دوره‌ای به شما اختصاص داده نشده است.{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <nav class="pager" aria-label="صفحه‌بندی">
+        {% if pagination.has_prev %}
+        <a class="btn ghost small" href="{{ url_for('teacher_courses', page=pagination.prev_num, q=q or None) }}">صفحه قبل</a>
+        {% else %}
+        <span class="btn ghost small disabled" aria-disabled="true">صفحه قبل</span>
+        {% endif %}
+
+        <span class="pager-info">صفحه {{ pagination.page }} از {{ pages }}</span>
+
+        {% if pagination.has_next %}
+        <a class="btn ghost small" href="{{ url_for('teacher_courses', page=pagination.next_num, q=q or None) }}">صفحه بعد</a>
+        {% else %}
+        <span class="btn ghost small disabled" aria-disabled="true">صفحه بعد</span>
+        {% endif %}
+    </nav>
+</section>
+{% endblock %}

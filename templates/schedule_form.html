@@ -35,7 +35,7 @@
             </div>
 
             <div class="field">
-                <label for="date">تاریخ (شمسی) <span class="req" aria-hidden="true">*</span></label>
+                <label for="date">تاریخ  <span class="req" aria-hidden="true">*</span></label>
                 <input id="date" name="date" type="text" required dir="ltr" placeholder="1405/07/20"
                        value="{{ form.get('date') or today }}">
             </div>
@@ -54,7 +54,14 @@
             </div>
         </div>
 
-        {% if bookings %}
+       
+
+        <div class="actions">
+            <button class="btn primary" type="submit">ثبت برنامه</button>
+            <a class="btn ghost" href="{{ url_for('schedules_list') }}">لیست دوره‌ها در کلاس‌ها</a>
+        </div>
+<br><br>
+         {% if bookings %}
         <div class="note-box">
             <strong>رزروهای ثبت‌شده‌ی پیش‌رو (برای جلوگیری از تداخل):</strong>
             <ul class="booking-list">
@@ -66,11 +73,6 @@
             </ul>
         </div>
         {% endif %}
-
-        <div class="actions">
-            <button class="btn primary" type="submit">ثبت برنامه</button>
-            <a class="btn ghost" href="{{ url_for('schedules_list') }}">لیست دوره‌ها در کلاس‌ها</a>
-        </div>
     </form>
 </section>
 {% endblock %}

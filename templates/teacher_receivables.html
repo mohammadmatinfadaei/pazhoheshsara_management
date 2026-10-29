@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "_list_macros.html" import search_bar, pager %}
+{% block title %}طلب‌های شما | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide">
+    <p class="crumb">امور مالی</p>
+    <h1>طلب‌های شما</h1>
+    <p class="lead">هر دوره یک حقوق دارد و آموزشگاه تا پرداخت کامل آن به شما بدهکار است. حقوق ممکن است در چند قسط پرداخت شود.{% if q %} نتیجه جستجو: {{ found }} از {{ total }} دوره.{% endif %}</p>
+
+    <div class="stats">
+        <div class="stat"><span>مجموع حقوق دوره‌های شما</span><strong>{{ stats.salary|money }} تومان</strong></div>
+        <div class="stat"><span>دریافت‌شده</span><strong>{{ stats.paid|money }} تومان</strong></div>
+        <div class="stat total"><span>طلب باقی‌مانده</span><strong class="{% if stats.remaining %}text-danger{% endif %}">{{ stats.remaining|money }} تومان</strong></div>
+    </div>
+
+    {{ search_bar('teacher_receivables', q, 'نام دوره یا کد دوره') }}
+
+    <div class="table-wrap">
+        <table class="table wrap">
+            <thead>
+                <tr>
+                    <th scope="col">دوره</th>
+                    <th scope="col">حقوق دوره</th>
+                    <th scope="col">دریافت‌شده</th>
+                    <th scope="col">باقی‌مانده</th>
+                    <th scope="col">وضعیت</th>
+                    <th scope="col">قسط‌های دریافتی</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ r.name }} <small class="loan-detail" dir="ltr">{{ r.code or '—' }}{% if r.ended %} — دوره تمام شده{% endif %}</small></td>
+                    <td>{% if r.salary %}{{ r.salary|money }} تومان{% else %}<span class="text-danger">ثبت نشده</span>{% endif %}</td>
+                    <td>{% if r.salary %}{{ r.paid|money }} تومان{% else %}—{% endif %}</td>
+                    <td>{% if r.remaining is none %}—{% elif r.remaining %}<strong class="text-danger">{{ r.remaining|money }} تومان</strong>{% else %}0 تومان{% endif %}</td>
+                    <td>
+                        {% if r.remaining is none %}<span class="badge-off">حقوق ثبت نشده</span>
+                        {% elif r.remaining %}<span class="badge-loaned">طلب باقی‌مانده</span>
+                        {% else %}<span class="badge-ok">تسویه شده</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if r.payments %}
+                        <details>
+                            <summary>{{ r.payments|length }} قسط</summary>
+                            {% for p in r.payments %}
+                            <small class="loan-detail"><span dir="ltr">{{ p.date }}</span> — {{ p.amount|money }} تومان</small>
+                            {% endfor %}
+                        </details>
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty">{% if q %}دوره‌ای با این جستجو پیدا نشد.{% else %}هنوز دوره‌ای به شما اختصاص داده نشده است.{% endif %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {{ pager('teacher_receivables', pagination, q) }}
+</section>
+{% endblock %}

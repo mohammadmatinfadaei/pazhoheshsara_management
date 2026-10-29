@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_list_macros.html" import search_bar, pager %}
 {% block title %}ثبت دانش‌آموز در دوره | پژوهش‌سرا{% endblock %}
 
 {% block content %}
@@ -6,6 +7,9 @@
     <p class="crumb">مدیریت کلاس‌ها</p>
     <h1>ثبت دانش‌آموز در دوره</h1>
     <p class="lead">دوره‌ای را که می‌خواهید دانش‌آموز در آن ثبت شود انتخاب کنید. دوره‌های تمام‌شده نمایش داده نمی‌شوند.</p>
+    <p class="lead">دوره‌های باز: {{ total }}{% if q %} | نتیجه جستجو: {{ found }}{% endif %}</p>
+
+    {{ search_bar('enroll_pick', q, 'نام دوره، کد دوره، دسته‌بندی یا مدرس') }}
 
     <div class="table-wrap">
         <table class="table wrap">
@@ -13,6 +17,7 @@
                 <tr>
                     <th scope="col">کد دوره</th>
                     <th scope="col">نام دوره</th>
+                    <th scope="col">دسته‌بندی</th>
                     <th scope="col">مدرس</th>
                     <th scope="col">تعداد دانش‌آموزان</th>
                     <th scope="col">وضعیت</th>
@@ -24,6 +29,7 @@
                 <tr>
                     <td dir="ltr">{{ r.code or '—' }}</td>
                     <td>{{ r.name }}</td>
+                    <td>{{ r.category }}</td>
                     <td>{{ r.teacher or 'ثبت نشده' }}</td>
                     <td>{{ r.students }}</td>
                     <td>
@@ -38,11 +44,13 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" class="empty">دوره‌ی بازی وجود ندارد. ابتدا یک دوره اضافه کنید.</td></tr>
+                <tr><td colspan="7" class="empty">{% if q %}دوره‌ای با این جستجو پیدا نشد.{% else %}دوره‌ی بازی وجود ندارد. ابتدا یک دوره اضافه کنید.{% endif %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+    {{ pager('enroll_pick', pagination, q) }}
 
     <div class="actions">
         <a class="btn ghost" href="{{ url_for('course_add') }}">افزودن دوره</a>

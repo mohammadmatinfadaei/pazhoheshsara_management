@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_list_macros.html" import search_bar, pager %}
+{% block title %}اعمال کاربران | پژوهش‌سرا{% endblock %}
+
+{% block content %}
+<section class="card wide xwide">
+    <p class="crumb">مدیر آموزشگاه</p>
+    <h1>اعمال کاربران</h1>
+    <p class="lead">
+        کل اعمال ثبت‌شده: {{ total }}{% if q %} | نتیجه جستجو: {{ found }}{% endif %}
+        <br>هر کاری که کارمندان، دبیران و دانش‌آموزان در سامانه انجام می‌دهند اینجا با نام و زمان ثبت می‌شود.
+    </p>
+
+    <form class="purge-box" method="post" action="{{ url_for('audit_purge') }}" data-total="{{ total }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="purge-head">
+            <strong>پاک کردن مخزن</strong>
+            <span>قدیمی‌ترین رکوردها (از ابتدای مخزن) پاک می‌شوند؛ مثلاً ۱۰٪ از ۱۰۰ رکورد یعنی رکورد ۱ تا ۱۰.</span>
+        </div>
+
+        <div class="purge-presets" role="group" aria-label="مقدارهای آماده">
+            {% for p in (10, 30, 50, 70, 100) %}
+            <button type="button" class="chip" data-percent="{{ p }}">{{ p }}٪</button>
+            {% endfor %}
+        </div>
+
+        <input class="purge-range" type="range" name="percent" min="0" max="100" step="1" value="0"
+               aria-label="درصد قدیمی‌ترین رکوردها برای پاک شدن" {% if not total %}disabled{% endif %}>
+
+        <p class="purge-readout">
+            <output id="purge-percent">0٪</output>
+            — <output id="purge-count">0</output> رکورد از {{ total }}
+        </p>
+        <button class="btn danger solid" type="submit" disabled>پاک کردن مخزن</button>
+    </form>
+
+    {{ search_bar('audit_log', q, 'نام کاربر، نوع کار، نام دوره یا دانش‌آموز، تاریخ ...') }}
+
+    <div class="table-wrap">
+        <table class="table wrap">
+            <thead>
+                <tr>
+                    <th scope="col">زمان</th>
+                    <th scope="col">شرح</th>
+                    <th scope="col">حذف</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td dir="ltr">{{ r.time or '—' }}</td>
+                    <td class="col-text">{{ r.text }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('audit_delete', action_id=r.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="q" value="{{ q }}">
+                            <input type="hidden" name="page" value="{{ pagination.page }}">
+                            <button class="btn danger small" type="submit">حذف</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="empty">{% if q %}عملی با این جستجو پیدا نشد.{% else %}هنوز عملی ثبت نشده است.{% endif %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {{ pager('audit_log', pagination, q) }}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/script/audit.js"></script>
+{% endblock %}

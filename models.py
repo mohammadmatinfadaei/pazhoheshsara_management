@@ -9,6 +9,10 @@ import os
 
 app = Flask(__name__)
 
+# دسته‌بندی‌های مجاز دوره‌ها (ترتیب همین ترتیب نمایش در فرم است)
+COURSE_CATEGORIES = ["رباتیک", "الکترونیک", "پایتون", "اسکرچ", "علوم پایه", "موارد دیگر"]
+DEFAULT_COURSE_CATEGORY = "موارد دیگر"
+
 # نکته: SECRET_KEY و تنظیمات امنیتی کوکی در app.py انجام می‌شود.
 # CORS هم عمداً حذف شده است؛ با CORS(app) همه‌ی سایت‌ها اجازه‌ی
 # درخواست به برنامه را داشتند.
@@ -338,6 +342,9 @@ class Courses(db.Model):
 
     course_code = db.Column(db.Text)
 
+    # دسته‌بندی دوره؛ یکی از COURSE_CATEGORIES (برای دوره‌های قدیمی: «موارد دیگر»)
+    category = db.Column(db.Text, default=DEFAULT_COURSE_CATEGORY)
+
     # قیمت دوره برای هر دانش‌آموز (عدد صحیح)
     price = db.Column(db.Integer)
 
@@ -366,6 +373,7 @@ class Courses(db.Model):
             f"{self.number_of_session},"
             f"{self.activation_date},"
             f"{self.course_code},"
+            f"{self.category},"
             f"{self.price},"
             f"{self.teacher_salary}"
             f")"
@@ -728,6 +736,30 @@ class Attendance(db.Model):
             f"{self.number_of_session}"
             f")"
         )
+
+
+# =========================================================
+# USER ACTIONS LOG  (جدول «اعمال کاربران»؛ با اجرای برنامه خودکار ساخته می‌شود)
+# =========================================================
+
+class UserActions(db.Model):
+    __tablename__ = "user_actions"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # زمان شمسی با ثانیه، مثل 1405/08/04 14:30:05
+    created_at = db.Column(db.Text, index=True)
+
+    # چه کسی: نقش (کارمند / مدیر آموزشگاه / دبیر / دانش‌آموز/والدین)، شناسه و نام
+    user_role = db.Column(db.Text)
+    user_id = db.Column(db.Integer)
+    user_name = db.Column(db.Text)
+
+    # چه کاری و با چه جزئیاتی
+    action = db.Column(db.Text)
+    detail = db.Column(db.Text)
+
+    ip = db.Column(db.Text)
 
 
 # =========================================================
